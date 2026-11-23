@@ -2,6 +2,18 @@
 <%- include('layout_top', {page:'pronostics'}) %>
 
 <style>
+/* Plusieurs pronostics par match (23 novembre 2026). */
+.pf-pronos { padding:14px 16px; margin-bottom:16px; }
+.pf-pronos-tete { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+.pf-pronos-tete h2 { font-size:1rem; margin:0; }
+.pf-pronos-liste { list-style:none; margin:0; padding:0; }
+.pf-pronos-ligne { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:10px 0; border-top:1px solid var(--border); }
+.pf-pronos-actif strong { text-decoration:underline; }
+.pf-pronos-texte { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.pf-pronos-texte span { color:var(--text-m); font-size:.82rem; }
+.pf-pronos-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.pf-pronos-actions .btn { min-height:44px; }
+.pf-pronos-note { margin:8px 0 0; color:var(--text-m); font-size:.8rem; }
 /* ── Match preview ────────────────────────────────────────────────────────────── */
 .match-preview {
   display:flex; align-items:center; justify-content:center;
@@ -170,6 +182,51 @@
 
 <% if(error){ %><div class="alert alert-error"><%= error %></div><% } %>
 
+<%# Plusieurs pronostics par match (23 novembre 2026) : la liste, l'ajout, et
+    le retrait avant le coup d'envoi (administrateur principal). %>
+<%
+  const _pronos  = Array.isArray(match.pronostics) ? match.pronostics : [];
+  const _admin1  = typeof isMain !== 'undefined' && isMain;
+  const _q       = typeof query !== 'undefined' && query ? query : {};
+%>
+<% if (_q.retire !== undefined) { %>
+  <div class="alert alert-success">Pronostic retiré<%= Number(_q.retire) > 0 ? ' — ' + Number(_q.retire) + ' mise(s) de bankroll rendue(s)' : '' %>.</div>
+<% } %>
+<% if (_q.retrait_erreur) { %><div class="alert alert-error"><%= _q.retrait_erreur %></div><% } %>
+<% if (_pronos.length > 0) { %>
+<section class="card pf-pronos" aria-labelledby="pf-pronos-titre">
+  <div class="pf-pronos-tete">
+    <h2 id="pf-pronos-titre">Pronostics de ce match (<%= _pronos.length %>)</h2>
+    <% if (!_termine) { %>
+    <a class="btn btn-sm btn-outline" href="/admin/pronostics/edit/<%= match.id %>?nouveau=1"><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Ajouter un pronostic</a>
+    <% } %>
+  </div>
+  <ul class="pf-pronos-liste">
+    <% _pronos.forEach(function (x) { %>
+    <li class="pf-pronos-ligne<%= x.id === pro.id ? ' pf-pronos-actif' : '' %>">
+      <div class="pf-pronos-texte">
+        <strong><%= x.prediction_label %></strong>
+        <span>cote <%= x.odds_recommended %> · <%= x.is_premium ? 'VIP' : 'Gratuit' %> · <%= x.is_published ? 'Publié' : 'Brouillon' %><%= x.result ? ' · ' + x.result : '' %><%= x.principal ? ' · principal' : '' %></span>
+      </div>
+      <div class="pf-pronos-actions">
+        <% if (x.id !== pro.id) { %>
+        <a class="btn btn-sm btn-outline" href="/admin/pronostics/edit/<%= match.id %>?prono=<%= x.id %>"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier</a>
+        <% } else { %><span class="badge badge-info">En cours d’édition</span><% } %>
+        <% if (_admin1 && (_avantCoupEnvoi || !x.publicationRecordedAt)) { %>
+        <button type="button" class="btn btn-sm btn-danger" data-prono="<%= x.id %>" data-libelle="<%= x.prediction_label %>" onclick="retirerPronostic(this)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Retirer</button>
+        <% } %>
+      </div>
+    </li>
+    <% }) %>
+  </ul>
+  <p class="pf-pronos-note">Retirer un pronostic n’est possible qu’avant le coup d’envoi : ensuite, il reste dans l’historique et son résultat dans le bilan.</p>
+</section>
+<form method="POST" action="/admin/pronostics/<%= _pronos[0].id %>/supprimer" id="form-retirer" hidden>
+  <input type="hidden" name="match_id" value="<%= match.id %>">
+  <input type="hidden" name="libelle" id="form-retirer-libelle" value="">
+</form>
+<% } %>
+
 <%
   const _prog      = (typeof programmation !== 'undefined') ? programmation : null;
   const _progEchec = (typeof programmationEchec !== 'undefined') ? programmationEchec : null;
@@ -289,6 +346,9 @@
 </div>
 <% } %>
 <form method="POST" action="/admin/pronostics/edit/<%= match.id %>" id="pro-form">
+<%# Le pronostic édité, ou un nouveau pour ce match (23 novembre 2026). %>
+<% if (isEdit) { %><input type="hidden" name="pronostic_id" value="<%= pro.id %>">
+<% } else if (_q.nouveau === '1') { %><input type="hidden" name="nouveau" value="true"><% } %>
 <fieldset class="translation-preview" lang="en" <%= _lectureSeule ? 'disabled' : '' %>><legend>English translation</legend><p><%= uiText("Champs facultatifs : sans traduction, le texte français est conservé.") %></p>
 <div class="form-group"><label for="i18n-prediction_label_en">Custom prediction label</label><textarea class="input" id="i18n-prediction_label_en" name="prediction_label_en" rows="3" maxlength="500"><%= (pro).prediction_label_en || '' %></textarea></div>
 <div class="form-group"><label for="i18n-analyst_note_en">Analyst note</label><textarea class="input" id="i18n-analyst_note_en" name="analyst_note_en" rows="3" maxlength="50000"><%= (pro).analyst_note_en || '' %></textarea></div>
@@ -1415,6 +1475,23 @@ fetchPrediction();
  * route, qui ne touche qu'a l'indicateur de publication. */
 function depublish() {
   document.getElementById('form-depublier').submit();
+}
+
+/* Retirer un pronostic avant le coup d'envoi (23 novembre 2026). */
+function retirerPronostic(bouton) {
+  askConfirm({
+    icon: 'trash',
+    title: 'Retirer ce pronostic ?',
+    msg: '<strong>' + bouton.dataset.libelle + '</strong> sera retiré. Les mises de bankroll sont rendues aux abonnés, et le retrait est journalisé.',
+    btnLabel: 'Retirer',
+    btnClass: 'btn-danger',
+    onConfirm: function () {
+      var f = document.getElementById('form-retirer');
+      f.action = '/admin/pronostics/' + encodeURIComponent(bouton.dataset.prono) + '/supprimer';
+      document.getElementById('form-retirer-libelle').value = bouton.dataset.libelle;
+      f.submit();
+    },
+  });
 }
 
 // Un brouillon enregistré sous le seuil doit l'annoncer dès l'ouverture.

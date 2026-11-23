@@ -334,8 +334,10 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
     // Accepte un id de pronostic OU de match — même raison que les autres
     // endpoints du détail match (cf. findPronoByIdOrMatchId).
     const [prono, user] = await Promise.all([
+      // Un id de match : son pronostic principal (plusieurs par match,
+      // 23 novembre 2026).
       prisma.pronostic.findFirst({
-        where:   { OR: [{ id: req.params.id }, { matchId: req.params.id }] },
+        where:   { OR: [{ id: req.params.id }, { principalMatchId: req.params.id }] },
         include: { match: true, analyst: { select: { name: true } } },
       }),
       // Invité : pas d'userId. `findUnique` avec un id undefined lève une
@@ -375,6 +377,17 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
     // résultat, lui, reste visible.
     const locked = estVerrouille(prono.isPremium, userIsPremium);
 
+    // Les autres pronostics du match (23 novembre 2026), visibles aux mêmes
+    // conditions que celui-ci, chacun avec son propre verrou VIP.
+    const autres = await prisma.pronostic.findMany({
+      where: {
+        matchId: prono.matchId, id: { not: prono.id },
+        OR: [{ isPublished: true },
+             ...(prono.match.status === 'FINISHED' ? [{ publicationRecordedAt: { not: null } }] : [])],
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
     res.json({
       // `locked` dit au client d'afficher la carte pronostic verrouillée
       // plutôt que de croire à une absence de données.
@@ -413,6 +426,23 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
       // Le résultat reste visible : il prouve la fiabilité passée et c'est
       // précisément l'argument de vente.
       result:           prono.result,
+      autres_pronostics: autres.map(a => {
+        const lockedAutre = estVerrouille(a.isPremium, userIsPremium);
+        return {
+          id:                  a.id,
+          is_premium:          a.isPremium,
+          locked:              lockedAutre,
+          prediction_type:     lockedAutre ? null : a.predictionType,
+          prediction_label:    lockedAutre ? null : a.predictionLabel,
+          prediction_label_en: lockedAutre ? null : a.predictionLabelEn ?? null,
+          odds_recommended:    lockedAutre ? null : a.oddsRecommended,
+          confidence_score:    lockedAutre ? null : a.confidenceScore,
+          confidence_pct:      lockedAutre ? null : pourcentageConfiance(a),
+          analyst_note:        lockedAutre ? null : a.analystNote,
+          analyst_note_en:     lockedAutre ? null : a.analystNoteEn ?? null,
+          result:              a.result,
+        };
+      }),
     });
   } catch (e: any) { repondreErreur(res, e); }
 };
@@ -500,10 +530,17 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
     const publish = b.publish === true || b.publish === 'true';
     // Un pronostic publié se modifie jusqu'au coup d'envoi : seule la première
     // publication annonce un nouveau pronostic, pas chaque correction.
-    const dejaPublie = !!(await prisma.pronostic.findUnique({
-      where: { matchId: String(b.match_id ?? '') }, select: { publicationRecordedAt: true },
+    //
+    // Plusieurs pronostics par match (23 novembre 2026) : le pronostic visé
+    // par son id, un nouveau, ou à défaut le principal du match.
+    const pronosticId = typeof b.pronostic_id === 'string' && b.pronostic_id ? b.pronostic_id : undefined;
+    const nouveau = b.nouveau === true || b.nouveau === 'true';
+    const dejaPublie = !nouveau && !!(await prisma.pronostic.findUnique({
+      where: pronosticId ? { id: pronosticId } : { principalMatchId: String(b.match_id ?? '') },
+      select: { publicationRecordedAt: true },
     }))?.publicationRecordedAt;
     const p = await svc.upsertPronostic({
+      pronosticId, nouveau,
       matchId:         b.match_id,
       analystId:       req.adminId!,
       predictionType:  b.prediction_type,
@@ -540,6 +577,26 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
     cache.del(CACHE_KEYS.publicStats);
     res.status(201).json(p);
   } catch (e: any) { repondreErreur(res, e, 400); }
+};
+
+/**
+ * DELETE /pronostics/admin/pronostic/:id — retirer un pronostic avant le coup
+ * d'envoi (23 novembre 2026). Réservé à l'administrateur principal
+ * (permissions_admin). Après le coup d'envoi : 409.
+ */
+export const supprimerPronostic = async (req: AdminRequest, res: Response) => {
+  try {
+    const r = await svc.supprimerPronostic(req.params.id, req.adminId!);
+    cache.del('pronostics:');
+    cache.del(CACHE_KEYS.publicStats);
+    res.json(r);
+  } catch (e: any) { repondreErreur(res, e, 400); }
+};
+
+/** GET /pronostics/admin/match/:id/pronostics — tous les pronostics d'un match. */
+export const getPronosticsDuMatch = async (req: AdminRequest, res: Response) => {
+  try { res.json({ pronostics: await svc.pronosticsDuMatch(req.params.id) }); }
+  catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const togglePublish = async (req: AdminRequest, res: Response) => {
@@ -783,7 +840,8 @@ export const getMatchPlayers = async (req: AdminRequest, res: Response) => {
 async function findPronoByIdOrMatchId(id: string) {
   const byProno = await prisma.pronostic.findUnique({ where: { id }, include: { match: true } });
   if (byProno) return byProno;
-  return prisma.pronostic.findUnique({ where: { matchId: id }, include: { match: true } });
+  // Un id de match : son pronostic principal (plusieurs par match, 23 novembre 2026).
+  return prisma.pronostic.findUnique({ where: { principalMatchId: id }, include: { match: true } });
 }
 
 
@@ -1372,6 +1430,41 @@ export const getAiAnalysis = async (req: AuthRequest, res: Response) => {
 };
 
 // Récupérer un match depuis la base de données (pour le formulaire d'édition)
+/** Un pronostic au format du formulaire du panneau (snake_case). */
+function pronosticPourPanneau(p: Awaited<ReturnType<typeof prisma.pronostic.findUnique>> & {}) {
+  return {
+    id:                p.id,
+    principal:         !!p.principalMatchId,
+    prediction_type:   p.predictionType,
+    prediction_label:  p.predictionLabel,
+    prediction_label_en:  p.predictionLabelEn ?? null,
+    market_name:       p.marketName,
+    market_value:      p.marketValue,
+    odds_home:         p.oddsHome,
+    odds_draw:         p.oddsDraw,
+    odds_away:         p.oddsAway,
+    odds_recommended:  p.oddsRecommended,
+    confidence_score:  p.confidenceScore,
+    confidence_pct:  pourcentageConfiance(p),
+    analyst_note:      p.analystNote,
+    analyst_note_en:      p.analystNoteEn ?? null,
+    is_premium:        p.isPremium,
+    is_published:      p.isPublished,
+    result:            p.result,
+    createdAt:         p.createdAt,
+    updatedAt:         p.updatedAt,
+    publishedAt:       p.publishedAt,
+    publicationRecordedAt: p.publicationRecordedAt,
+  };
+}
+
+/**
+ * GET /pronostics/admin/match/:matchId — le match et le pronostic à éditer.
+ *
+ * Plusieurs pronostics par match (23 novembre 2026) : `?prono=<id>` désigne
+ * celui à éditer, `?nouveau=1` demande un formulaire vierge ; sans l'un ni
+ * l'autre, le principal. `pronostics` les liste tous, le principal d'abord.
+ */
 export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
   try {
     const match = await prisma.match.findUnique({
@@ -1379,36 +1472,17 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
       include: { pronostic: true },
     });
     if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
-    const p = match.pronostic;
+    const tous = await svc.pronosticsDuMatch(match.id);
+    const vise = typeof req.query.prono === 'string' ? tous.find(x => x.id === req.query.prono) : undefined;
+    const p = req.query.nouveau === '1' ? null : (vise ?? match.pronostic);
     res.json({
       ...match,
-      has_pronostic: !!p,
+      has_pronostic: !!match.pronostic,
       is_published:  p?.isPublished ?? false,
       // Le formulaire admin (pronostic_form.ejs) attend du snake_case — Prisma
       // renvoie du camelCase par défaut, d'où ce remappage explicite.
-      pronostic: p ? {
-        id:                p.id,
-        prediction_type:   p.predictionType,
-        prediction_label:  p.predictionLabel,
-        prediction_label_en:  p.predictionLabelEn ?? null,
-        market_name:       p.marketName,
-        market_value:      p.marketValue,
-        odds_home:         p.oddsHome,
-        odds_draw:         p.oddsDraw,
-        odds_away:         p.oddsAway,
-        odds_recommended:  p.oddsRecommended,
-        confidence_score:  p.confidenceScore,
-        confidence_pct:  pourcentageConfiance(p),
-        analyst_note:      p.analystNote,
-        analyst_note_en:      p.analystNoteEn ?? null,
-        is_premium:        p.isPremium,
-        is_published:      p.isPublished,
-        result:            p.result,
-        createdAt:         p.createdAt,
-        updatedAt:         p.updatedAt,
-        publishedAt:       p.publishedAt,
-        publicationRecordedAt: p.publicationRecordedAt,
-      } : null,
+      pronostic: p ? pronosticPourPanneau(p) : null,
+      pronostics: tous.map(pronosticPourPanneau),
     });
   } catch (e: any) { repondreErreur(res, e); }
 };

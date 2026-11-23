@@ -41,7 +41,7 @@ export class CommentsService {
     if (byProno) return byProno.id;
 
     const byMatch = await prisma.pronostic.findUnique({
-      where: { matchId: idOrMatchId }, select: { id: true },
+      where: { principalMatchId: idOrMatchId }, select: { id: true },
     });
     return byMatch?.id ?? null;
   }

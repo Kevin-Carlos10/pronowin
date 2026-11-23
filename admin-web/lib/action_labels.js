@@ -61,6 +61,7 @@ const ACTION_LABELS = {
   user_bulk_suspended:       { label: 'Comptes suspendus (lot)',  icon: 'dot', cat: 'user' },
   user_bulk_activated:       { label: 'Comptes réactivés (lot)',  icon: 'dot', cat: 'user' },
   user_bulk_notified:        { label: 'Notification groupée',      icon: 'megaphone', cat: 'user' },
+  pronostic_supprime:        { label: 'Pronostic retiré avant le coup d\u2019envoi', icon: 'trash', cat: 'prono' },
   premium_expires_relances:  { label: 'Premium expirés relancés',  icon: 'megaphone', cat: 'user' },
   bankroll_exported:         { label: 'Export bankrolls',        icon: 'target', cat: 'finance' },
   versements_exportes:       { label: 'Export versements dus',   icon: 'download', cat: 'finance' },

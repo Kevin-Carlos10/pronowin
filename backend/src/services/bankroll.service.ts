@@ -362,7 +362,7 @@ export async function placeBet(
   const pronostic = await prisma.pronostic.findUnique({ where: { id: pronosticId } });
   if (!pronostic) {
     // Essai par matchId
-    const byMatch = await prisma.pronostic.findUnique({ where: { matchId: pronosticId } });
+    const byMatch = await prisma.pronostic.findUnique({ where: { principalMatchId: pronosticId } });
     if (!byMatch) throw new Error('Pronostic introuvable.');
     pronosticId = byMatch.id;
   }
@@ -718,6 +718,24 @@ export function notifierSelectionModifiee(
            + `${a.montant.toLocaleString('fr-FR')} ${nomDevise(a.devise)} vous a été rendue : `
            + 'vous pouvez valider la nouvelle sélection.',
       data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
+    }).catch(() => {});
+  }
+}
+
+/**
+ * Le pronostic a été retiré avant le coup d'envoi (23 novembre 2026) : la
+ * mise est rendue. À appeler après la transaction.
+ */
+export function notifierPronosticRetire(
+  annules: PariAnnule[], match: { id: string; homeTeam: string; awayTeam: string },
+) {
+  const matchStr = rencontre(match.homeTeam, match.awayTeam);
+  for (const a of annules) {
+    notifSvc.sendToUser(a.userId, {
+      title: 'Pronostic retiré',
+      body:  `L’analyste a retiré un pronostic sur ${matchStr} avant le coup d’envoi. Votre mise de `
+           + `${a.montant.toLocaleString('fr-FR')} ${nomDevise(a.devise)} vous a été rendue.`,
+      data:  { deep_link: `/pronostics/${match.id}`, type: 'match' },
     }).catch(() => {});
   }
 }

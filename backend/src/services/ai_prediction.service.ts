@@ -241,7 +241,7 @@ export function explicationSansCotes(explication: string): string {
 export async function analyzePronostic(id: string): Promise<StatPrediction> {
   // Accepte un pronostic UUID ou un match UUID (selon l'endpoint appelant)
   let prono = await prisma.pronostic.findUnique({ where: { id }, include: { match: true } });
-  if (!prono) prono = await prisma.pronostic.findUnique({ where: { matchId: id }, include: { match: true } });
+  if (!prono) prono = await prisma.pronostic.findUnique({ where: { principalMatchId: id }, include: { match: true } });
 
   // Pas de pronostic → calculer depuis le match directement (cotes neutres)
   if (!prono) {

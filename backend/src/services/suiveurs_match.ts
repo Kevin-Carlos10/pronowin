@@ -47,9 +47,11 @@ export async function suiveursDuMatch(
     categorie
       ? prisma.userFavoriteMatch.findMany({ where: { matchId }, select: { userId: true } })
       : Promise.resolve(null),
+    // Les paris en cours sur n'importe quel pronostic du match (plusieurs
+    // par match, 23 novembre 2026), pas seulement sur le principal.
     pronosticId
       ? prisma.bankrollBet.findMany({
-          where:  { pronosticId, result: null },
+          where:  { pronostic: { matchId }, result: null },
           select: { bankroll: { select: { userId: true } } },
         })
       : Promise.resolve([] as { bankroll: { userId: string } }[]),

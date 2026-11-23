@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
 import { ApiFootballService, apiFootballService, mapAFStatus, matchStatusPriority, type AFFixture } from './api_football.service';
 import { NotificationService } from './notification.service';
 import {
-  annulerParisSelectionModifiee, notifierSelectionModifiee, settleBets, type PariAnnule,
+  annulerParisSelectionModifiee, notifierPronosticRetire, notifierSelectionModifiee, settleBets, type PariAnnule,
 } from './bankroll.service';
 import { refusDePari } from './verrou_pari';
 // Moteur de règlement — extrait dans son propre module pour être testable
@@ -122,6 +122,15 @@ export function verifierCotePublication(cote: number): void {
       `Vous pouvez l'enregistrer en brouillon si la cote peut encore monter.`,
     );
   }
+}
+
+/**
+ * `Match.hasPublishedPronostic`, recalculé : vrai dès qu'un des pronostics du
+ * match est publié (plusieurs par match, 23 novembre 2026).
+ */
+async function majPronosticPublie(tx: Prisma.TransactionClient, matchId: string) {
+  const publies = await tx.pronostic.count({ where: { matchId, isPublished: true } });
+  await tx.match.update({ where: { id: matchId }, data: { hasPublishedPronostic: publies > 0 } });
 }
 
 export class PronosticsService {
@@ -470,9 +479,14 @@ export class PronosticsService {
         // est en vitrine, sinon il ne peut pas le choisir en connaissance de
         // cause. La colonne existait, elle n'était exposée nulle part.
         isDailyFree: true,
+        principalMatchId: true,
       },
     });
-    const pronoMap = new Map(existing.map(p => [p.matchId, p]));
+    // Plusieurs pronostics par match (23 novembre 2026) : la ligne montre le
+    // principal, et combien le match en compte.
+    const pronoMap = new Map(existing.filter(p => p.principalMatchId).map(p => [p.matchId, p]));
+    const nbPronos = new Map<string, number>();
+    for (const p of existing) nbPronos.set(p.matchId, (nbPronos.get(p.matchId) ?? 0) + 1);
 
     // Le classement par compétition doit précéder le plafond : trier après
     // aurait seulement réordonné les 400 premiers matchs par date, c'est-à-dire
@@ -496,6 +510,7 @@ export class PronosticsService {
           ...m,
           has_pronostic: !!prono,
           is_published:  prono?.isPublished ?? false,
+          nb_pronostics: nbPronos.get(m.id) ?? 0,
           pronostic: prono ? {
             id:                prono.id,
             tip:               prono.predictionLabel,
@@ -615,7 +630,7 @@ export class PronosticsService {
     }
     if (!annoncerCoupEnvoi && !messages.length) return;
 
-    const prono = await prisma.pronostic.findUnique({ where: { matchId: match.id }, select: { id: true } });
+    const prono = await prisma.pronostic.findUnique({ where: { principalMatchId: match.id }, select: { id: true } });
     const categories = [...new Set<CategorieAlerte>([
       ...(annoncerCoupEnvoi ? ['coup_envoi' as const] : []), ...messages.map(m => m.categorie)])];
     const parCategorie = new Map<CategorieAlerte, Set<string>>();
@@ -838,9 +853,12 @@ export class PronosticsService {
 
       // 3. Si le match est TERMINÉ → calculer le résultat du pronostic
       if (mappedStatus === 'FINISHED' && homeScore !== null && awayScore !== null) {
-        const prono = await prisma.pronostic.findUnique({
-          where: { matchId: match.id },
+        // Tous les pronostics du match (plusieurs par match, 23 novembre
+        // 2026) ; le principal porte les liens des notifications.
+        const pronos = await prisma.pronostic.findMany({
+          where: { matchId: match.id }, orderBy: { createdAt: 'asc' },
         });
+        const prono = pronos.find(p => p.principalMatchId === match.id) ?? pronos[0] ?? null;
 
         // Notifier fin de match (score final) aux favoris
         if (favorites.length > 0 || parSuivi.length > 0) {
@@ -872,7 +890,8 @@ export class PronosticsService {
           }
         }
 
-        if (prono && prono.publicationRecordedAt && !prono.result) {
+        for (const prono of pronos) {
+          if (!prono.publicationRecordedAt || prono.result) continue;
           const result = _resolvePronosticResult(
             prono,
             { home: homeScore, away: awayScore },
@@ -887,14 +906,17 @@ export class PronosticsService {
             resolved++;
             settleBets(prono.id, result).catch((err: any) => journal.error("[PronoSvc]", err.message));
             journal.info(`[ScoreSync] Pronostic ${prono.id} → ${result} (${homeScore}-${awayScore})`);
-            notifSvc.notifyMatchResult({
-              homeTeam:    match.homeTeam,
-              awayTeam:    match.awayTeam,
-              homeScore,
-              awayScore,
-              result,
-              pronosticId: prono.id,
-            }).catch((err: any) => journal.error("[PronoSvc]", err.message));
+            // L'annonce à tous : une par match, celle du pronostic principal.
+            if (prono.principalMatchId === match.id) {
+              notifSvc.notifyMatchResult({
+                homeTeam:    match.homeTeam,
+                awayTeam:    match.awayTeam,
+                homeScore,
+                awayScore,
+                result,
+                pronosticId: prono.id,
+              }).catch((err: any) => journal.error("[PronoSvc]", err.message));
+            }
 
             // Notifier personnellement les utilisateurs favoris avec le résultat de leur prono
             const label = result === 'WIN' ? 'Pronostic gagnant !' : result === 'PUSH' ? 'Pronostic remboursé' : 'Pronostic perdant';
@@ -960,6 +982,10 @@ export class PronosticsService {
 
   // ─── ADMIN — Créer / Mettre à jour un pronostic ─────────────────────────────
   async upsertPronostic(params: {
+    /** Le pronostic à modifier (plusieurs par match, 23 novembre 2026). */
+    pronosticId?:    string;
+    /** Un pronostic de plus pour ce match. */
+    nouveau?:        boolean;
     matchId:         string;
     analystId:       string;
     predictionType:  string;
@@ -1011,7 +1037,15 @@ export class PronosticsService {
       // Même verrou pour les deux chemins de première publication.
       await tx.$queryRaw`SELECT id FROM matches WHERE id = ${params.matchId} FOR UPDATE`;
       await tx.$queryRaw`SELECT set_config('pronowin.actor', ${params.analystId}, true)`;
-      const existant = await tx.pronostic.findUnique({ where: { matchId: params.matchId } });
+      // Le pronostic visé, aucun pour un nouveau, sinon le principal.
+      const existant = params.pronosticId
+        ? await tx.pronostic.findUnique({ where: { id: params.pronosticId } })
+        : params.nouveau ? null
+        : await tx.pronostic.findUnique({ where: { principalMatchId: params.matchId } });
+      if (params.pronosticId && !existant) throw new ErreurMetier('Pronostic introuvable.', 404);
+      if (existant && existant.matchId !== params.matchId) {
+        throw new ErreurMetier('Ce pronostic appartient à un autre match.', 409);
+      }
       const inclure = { match: true, analyst: { select: { name: true } } } as const;
       let annules: PariAnnule[] = [];
       let pronostic;
@@ -1033,20 +1067,23 @@ export class PronosticsService {
         pronostic = await tx.pronostic.update({
           where: { id: existant.id }, data: { ...modifiable, updatedAt: new Date() }, include: inclure,
         });
+      } else if (existant) {
+        pronostic = await tx.pronostic.update({
+          where: { id: existant.id }, data: { ...data, updatedAt: new Date() }, include: inclure,
+        });
       } else {
-        pronostic = await tx.pronostic.upsert({
-          where:   { matchId: params.matchId },
-          update:  { ...data, updatedAt: new Date() },
-          create:  data,
-          include: inclure,
+        // Le premier pronostic d'un match en devient le principal ; les
+        // suivants s'y ajoutent.
+        const principal = await tx.pronostic.findUnique({
+          where: { principalMatchId: params.matchId }, select: { id: true } });
+        pronostic = await tx.pronostic.create({
+          data: { ...data, principalMatchId: principal ? null : params.matchId }, include: inclure,
         });
       }
       // Garder la colonne dénormalisée du match synchronisée (utilisée pour
-      // trier "prono d'abord" dans getAllMatches).
-      await tx.match.update({
-        where: { id: params.matchId },
-        data:  { hasPublishedPronostic: params.publish },
-      });
+      // trier "prono d'abord" dans getAllMatches) : vraie dès qu'un de ses
+      // pronostics est publié.
+      await majPronosticPublie(tx, params.matchId);
       return { pronostic, annules };
     });
     if (annules.length > 0) notifierSelectionModifiee(annules, pronostic.id, pronostic.match);
@@ -1073,11 +1110,56 @@ export class PronosticsService {
         // La date de première publication est conservée, même après un retrait.
         data: { isPublished: publish },
       });
-      await tx.match.update({
-        where: { id: pronostic.matchId }, data: { hasPublishedPronostic: publish },
-      });
+      await majPronosticPublie(tx, pronostic.matchId);
       return pronostic;
     });
+  }
+
+  // ─── ADMIN — Retirer un pronostic avant le coup d'envoi ──────────────────────
+  /**
+   * Retirer un pronostic (23 novembre 2026), réservé à l'administrateur
+   * principal : publié par erreur, sur le mauvais match. Seulement **avant le
+   * coup d'envoi** : personne ne l'a vu se jouer. Les mises de bankroll sont
+   * rendues, la suppression est journalisée par la base (« suppression »).
+   *
+   * Après le coup d'envoi, non — et la base le refuse aussi : un pronostic
+   * joué reste dans l'historique, et son résultat dans le bilan. Un brouillon
+   * jamais publié, lui, se retire quand on veut.
+   */
+  async supprimerPronostic(pronosticId: string, actor: string) {
+    const { annules, match } = await prisma.$transaction(async (tx) => {
+      const p = await tx.pronostic.findUnique({ where: { id: pronosticId }, include: { match: true } });
+      if (!p) throw new ErreurMetier('Pronostic introuvable.', 404);
+      await tx.$queryRaw`SELECT id FROM matches WHERE id = ${p.matchId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT set_config('pronowin.actor', ${actor}, true)`;
+      if (p.publicationRecordedAt
+          && refusDePari({ resultat: p.result, statutMatch: p.match.status, dateMatch: p.match.matchDate })) {
+        throw new ErreurMetier('Le match a commencé : ce pronostic reste dans l’historique, et son résultat dans le bilan. Vous pouvez le retirer de la liste (Dépublier).', 409);
+      }
+      const annules = await annulerParisSelectionModifiee(tx, p.id);
+      await tx.pronostic.delete({ where: { id: p.id } });
+      // Le principal parti, le plus ancien des autres prend sa place.
+      if (p.principalMatchId) {
+        const suivant = await tx.pronostic.findFirst({
+          where: { matchId: p.matchId }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+        if (suivant) {
+          await tx.pronostic.update({ where: { id: suivant.id }, data: { principalMatchId: p.matchId } });
+        }
+      }
+      await majPronosticPublie(tx, p.matchId);
+      return { annules, match: p.match };
+    });
+    if (annules.length > 0) notifierPronosticRetire(annules, match);
+    return { supprime: pronosticId, mises_rendues: annules.length };
+  }
+
+  /** Les pronostics d'un match, le principal d'abord (panneau). */
+  async pronosticsDuMatch(matchId: string) {
+    const pronos = await prisma.pronostic.findMany({
+      where: { matchId }, orderBy: { createdAt: 'asc' },
+      include: { analyst: { select: { name: true } } },
+    });
+    return pronos.sort((a, b) => Number(!!b.principalMatchId) - Number(!!a.principalMatchId));
   }
 
   // ─── Helper : filtre de date ──────────────────────────────────────────────────
@@ -1510,6 +1592,9 @@ export class PronosticsService {
         pronostic: {
           include: { analyst: { select: { name: true } } },
         },
+        // Plusieurs pronostics par match (23 novembre 2026) : la carte
+        // affiche le principal et « +N prono ».
+        _count: { select: { pronostics: { where: { isPublished: true } } } },
       },
       // Priorité aux matchs avec un pronostic publié par l'admin (avant ceux
       // encore "en cours d'analyse"), puis par heure de coup d'envoi — pour
@@ -1554,6 +1639,8 @@ export class PronosticsService {
         // direct » là où Sofascore donne « 67' » (vidéos du 8 novembre 2026).
         elapsed:          m.status === 'LIVE' ? m.elapsedMinutes : null,
         has_pronostic:    hasPronostic,
+        // Les autres pronostics publiés du match, en plus du principal.
+        autres_pronostics: Math.max(0, (m._count?.pronostics ?? 0) - (hasPronostic ? 1 : 0)),
         // Idem : le pick payant ne doit jamais quitter le serveur pour qui n'y
         // a pas droit.
         locked:           mLocked,

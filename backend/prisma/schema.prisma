@@ -314,7 +314,10 @@ model Match {
   // jour dans matchStatusPriority() (api_football.service.ts), utilisé à
   // chaque écriture de `status` (découverte admin + syncMatchScores).
   statusPriority        Int                 @default(1) @map("status_priority")
-  pronostic             Pronostic?
+  /// Le pronostic principal du match (voir `Pronostic.principalMatchId`).
+  pronostic             Pronostic?          @relation("PronosticPrincipal")
+  /// Tous ses pronostics, le principal compris (23 novembre 2026).
+  pronostics            Pronostic[]         @relation("PronosticsDuMatch")
   /// Les articles écrits seuls sur ce match : son avant-match, son résumé.
   articles              ResumeMatch[]
   /// « Qui va gagner ? » : les votes des fans avant le coup d'envoi.
@@ -492,7 +495,12 @@ model Pronostic {
   predictionLabelEn String? @map("prediction_label_en")
   analystNoteEn String? @map("analyst_note_en")
   id              String          @id @default(uuid())
-  matchId         String          @unique @map("match_id")
+  matchId         String          @map("match_id")
+  /// Plusieurs pronostics par match (23 novembre 2026). Le pronostic
+  /// principal porte ici l'id de son match — unique, donc un seul par match ;
+  /// les autres pronostics du même match, null. Tout ce qui lit « le
+  /// pronostic du match » (listes, alertes, fiche) lit le principal.
+  principalMatchId String?        @unique @map("principal_match_id")
   analystId       String          @map("analyst_id")
   predictionType  PredictionType  @map("prediction_type")
   predictionLabel String          @map("prediction_label")
@@ -524,9 +532,11 @@ model Pronostic {
   comments        Comment[]
   votes           PronosticVote[]
   analyst         Admin           @relation(fields: [analystId], references: [id])
-  match           Match           @relation(fields: [matchId], references: [id])
+  match           Match           @relation("PronosticsDuMatch", fields: [matchId], references: [id])
+  matchPrincipal  Match?          @relation("PronosticPrincipal", fields: [principalMatchId], references: [id])
 
   @@index([publicationRecordedAt], map: "pronostics_publication_recorded_idx")
+  @@index([matchId])
   @@map("pronostics")
 }
 

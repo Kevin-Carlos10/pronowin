@@ -168,7 +168,7 @@ export async function premiumSaufMatchTermine(
       const choix = { isPremium: true, match: { select: { status: true } } };
       const prono =
         await prisma.pronostic.findUnique({ where: { id }, select: choix }) ??
-        await prisma.pronostic.findUnique({ where: { matchId: id }, select: choix });
+        await prisma.pronostic.findUnique({ where: { principalMatchId: id }, select: choix });
 
       const statut = prono?.match?.status
         ?? (await prisma.match.findUnique({

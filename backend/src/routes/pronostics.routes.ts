@@ -87,6 +87,9 @@ r.get ('/admin/match/:matchId/joueurs',    adminMiddleware, C.getMatchPlayers);
 r.get ('/admin/match/:matchId',            adminMiddleware, C.getMatchFromDB);
 r.post('/admin/pronostic',                 adminMiddleware, valider({ body: pronosticAdmin }), C.upsertPronostic);
 r.patch('/admin/pronostic/:id/publish',    adminMiddleware, C.togglePublish);
+// Plusieurs pronostics par match (23 novembre 2026).
+r.delete('/admin/pronostic/:id',           adminMiddleware, C.supprimerPronostic);
+r.get('/admin/match/:id/pronostics',       adminMiddleware, C.getPronosticsDuMatch);
 r.patch('/admin/pronostic/:id/result',     adminMiddleware, C.setPronosticResult);
 r.patch('/admin/pronostic/:id/set-daily',  adminMiddleware, C.setDailyFree);
 r.post ('/admin/sync-scores',              adminMiddleware, C.syncScores);

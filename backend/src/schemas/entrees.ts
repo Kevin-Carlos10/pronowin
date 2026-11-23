@@ -43,6 +43,11 @@ export const pronosticAdmin = z.object({
   analyst_note:     texteFacultatif(4000),
   is_premium:       booleen,
   publish:          booleen,
+  // Plusieurs pronostics par match (23 novembre 2026) : le pronostic à
+  // modifier, ou un nouveau pronostic pour ce match. Sans l'un ni l'autre,
+  // le pronostic principal du match, comme avant.
+  pronostic_id:     texteFacultatif(80),
+  nouveau:          booleen,
 }).refine((b) => b.confidence_pct !== undefined || b.confidence_score !== undefined, {
   message: "Indiquez l'indice de confiance.", path: ['confidence_pct'],
 });

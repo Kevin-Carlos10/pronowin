@@ -179,10 +179,18 @@ module.exports = (app, ctx) => {
     }
   });
 
+  // Plusieurs pronostics par match (23 novembre 2026) : `?prono=<id>` édite
+  // ce pronostic, `?nouveau=1` en ajoute un ; sans l'un ni l'autre, le
+  // principal.
+  const ciblePronostic = (src) => ({
+    ...(typeof src.prono === 'string' && src.prono ? { prono: src.prono } : {}),
+    ...(src.nouveau === '1' ? { nouveau: '1' } : {}),
+  });
+
   app.get('/admin/pronostics/edit/:matchId', requireAuth, requirePerm('pronostics'), async (req, res) => {
     const a = api(req.admin.jeton);
     try {
-      const r = await a.get('/pronostics/admin/match/' + req.params.matchId);
+      const r = await a.get('/pronostics/admin/match/' + req.params.matchId, { params: ciblePronostic(req.query) });
       res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r.data, error: null, query: req.query,
         ...(await etatProgrammation(a, r.data?.pronostic?.id)) });
     } catch (e) {
@@ -198,10 +206,11 @@ module.exports = (app, ctx) => {
     const programmer = req.body.publish === 'programmer';
     const quand = programmer ? instantDepuisFormulaire(req.body, 'publier_le') : null;
     const { publier_le, quand_iso, ...champs } = req.body;
+    const cible = ciblePronostic({ prono: req.body.pronostic_id, nouveau: req.body.nouveau === 'true' ? '1' : '' });
     const reafficher = async (message) => {
       try {
-        const r2 = await a.get('/pronostics/admin/match/' + req.params.matchId);
-        res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r2.data, error: message, query: {},
+        const r2 = await a.get('/pronostics/admin/match/' + req.params.matchId, { params: cible });
+        res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r2.data, error: message, query: cible,
           ...(await etatProgrammation(a, r2.data?.pronostic?.id)) });
       } catch { res.redirect('/admin/pronostics'); }
     };
@@ -246,8 +255,8 @@ module.exports = (app, ctx) => {
       res.redirect('/admin/pronostics?' + params.toString());
     } catch (e) {
       try {
-        const r2 = await a.get('/pronostics/admin/match/' + req.params.matchId);
-        res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r2.data, error: e.response?.data?.message ?? 'Erreur', query: {} });
+        const r2 = await a.get('/pronostics/admin/match/' + req.params.matchId, { params: cible });
+        res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r2.data, error: e.response?.data?.message ?? 'Erreur', query: cible });
       } catch { res.redirect('/admin/pronostics'); }
     }
   });
@@ -285,6 +294,27 @@ module.exports = (app, ctx) => {
     } catch (e) {
       res.redirect(retour + '?depublish_error=' +
         encodeURIComponent(e.response?.data?.message ?? e.message));
+    }
+  });
+
+  /**
+   * Retirer un pronostic avant le coup d'envoi (23 novembre 2026) — publié
+   * par erreur, mauvais match. Administrateur principal seulement. Les mises
+   * de bankroll sont rendues ; le serveur refuse après le coup d'envoi (le
+   * pronostic reste dans l'historique, son résultat dans le bilan).
+   */
+  app.post('/admin/pronostics/:pronosticId/supprimer', requireAuth, requireMain, async (req, res) => {
+    const a = api(req.admin.jeton);
+    const matchId = typeof req.body.match_id === 'string' ? req.body.match_id : '';
+    const retour  = matchId ? '/admin/pronostics/edit/' + encodeURIComponent(matchId) : '/admin/pronostics';
+    try {
+      const r = await a.delete('/pronostics/admin/pronostic/' + encodeURIComponent(req.params.pronosticId));
+      logAction(req, 'pronostic_supprime', sanitize(req.body.libelle ?? `Pronostic #${req.params.pronosticId}`, 80),
+        { pronosticId: req.params.pronosticId, matchId, misesRendues: r.data?.mises_rendues ?? 0 });
+      res.redirect(retour + '?retire=' + encodeURIComponent(String(r.data?.mises_rendues ?? 0)));
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect(retour + '?retrait_erreur=' + encodeURIComponent(e.response?.data?.message ?? e.message));
     }
   });
 

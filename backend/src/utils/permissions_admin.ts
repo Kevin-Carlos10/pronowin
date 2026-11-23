@@ -122,11 +122,14 @@ const REGLES: Regle[] = [
 
   // ── Pronostics ──
   [LIRE,   /^\/pronostics\/admin\/(leagues|upcoming)$/,         section('pronostics', 'read')],
-  [LIRE,   /^\/pronostics\/admin\/match\/[^/]+(\/odds|\/prediction|\/joueurs)?$/, section('pronostics', 'read')],
+  [LIRE,   /^\/pronostics\/admin\/match\/[^/]+(\/odds|\/prediction|\/joueurs|\/pronostics)?$/, section('pronostics', 'read')],
   // Relevé des scores affichés dans la liste : un POST, mais une lecture.
   [ECRIRE, /^\/pronostics\/admin\/scores$/,                     section('pronostics', 'read')],
   [ECRIRE, /^\/pronostics\/admin\/(leagues-bulk|leagues\/[^/]+|pronostic|sync-scores)$/, section('pronostics', 'write')],
   [ECRIRE, /^\/pronostics\/admin\/pronostic\/[^/]+\/(publish|result|set-daily)$/, section('pronostics', 'write')],
+  // Retirer un pronostic avant le coup d'envoi (23 novembre 2026) : à
+  // l'administrateur principal seul.
+  [SUPPR,  /^\/pronostics\/admin\/pronostic\/[^/]+$/,                { acces: 'principal' }],
   [ECRIRE, /^\/comments\/[^/]+\/expert$/,                       section('pronostics', 'write')],
 
   // ── Tutoriels ──

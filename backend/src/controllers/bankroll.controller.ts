@@ -152,7 +152,7 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
       }
       const id = req.query.pronostic_id;
       const pro = await prisma.pronostic.findUnique({where:{id}}) ??
-        await prisma.pronostic.findUnique({where:{matchId:id}});
+        await prisma.pronostic.findUnique({where:{principalMatchId:id}});
       if (!pro) { res.status(404).json({message:'Pronostic introuvable.'}); return; }
       confidenceScore = pro.confidenceScore;
       confidencePct   = pourcentageConfiance(pro);

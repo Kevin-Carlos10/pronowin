@@ -336,6 +336,8 @@
             <% if(m.has_pronostic && m.pronostic) { %>
               <% if(m.pronostic.is_premium){ %><span title="Premium" style="color:var(--on-warning)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> <% } %>
               <%= m.pronostic.prediction_label || m.pronostic.tip || '—' %>
+              <%# Plusieurs pronostics par match (23 novembre 2026). %>
+              <% if((m.nb_pronostics || 0) > 1) { %><span class="badge badge-info pro-nb"><%= m.nb_pronostics %> pronos</span><% } %>
             <% } else { %><span style="color:var(--text-dim)">—</span><% } %>
           </td>
           <td class="num"><%= (m.has_pronostic && m.pronostic && m.pronostic.odds) ? m.pronostic.odds : '—' %></td>

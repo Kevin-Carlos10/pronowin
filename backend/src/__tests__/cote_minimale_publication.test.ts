@@ -44,6 +44,15 @@ jest.mock('../lib/prisma', () => {
         pronostics[p.id] = p;
         return p;
       }),
+      // Plusieurs pronostics par match (23 novembre 2026) : un nouveau
+      // pronostic se crée, et le match compte ses pronostics publiés.
+      create: jest.fn(async ({ data }: any) => {
+        ecritures.push('pronostic.create');
+        const p = { id: 'p-' + data.matchId, ...data };
+        pronostics[p.id] = p;
+        return p;
+      }),
+      count: jest.fn(async () => Object.values(pronostics).filter((p: any) => p.isPublished).length),
       update: jest.fn(async ({ where, data }: any) => {
         ecritures.push('pronostic.update');
         Object.assign(pronostics[where.id], data);
@@ -153,7 +162,7 @@ describe('enregistrement complet (upsertPronostic)', () => {
     // le marché remonte ; interdire le brouillon forcerait à tout ressaisir.
     const p = await svc.upsertPronostic(demande(1.15, false));
     expect(p.isPublished).toBe(false);
-    expect(ecritures).toContain('pronostic.upsert');
+    expect(ecritures).toContain('pronostic.create');
   });
 
   it('publication avec une cote vide : refusée', async () => {
