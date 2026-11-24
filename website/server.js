@@ -188,6 +188,17 @@ async function bilanPremium() {
 }
 
 /**
+ * Les chiffres VIP réels, à la place du taux (24 novembre 2026) : pronostics
+ * VIP publiés sur trente jours, compétitions couvertes, pronostics VIP du
+ * jour. Des comptes, pas un taux. Le serveur tait ceux qui sont trop petits
+ * pour être annoncés ; sans le premier, la section disparaît.
+ */
+async function chiffresVip() {
+  const d = await lireJson('/pronostics/chiffres-vip');
+  return d && Number.isInteger(d.vip_publies) ? d : null;
+}
+
+/**
  * Tarifs réels, lus au rendu.
  *
  * Le site annonçait « VIP Hebdo — 2 500 F / semaine » et « VIP Mensuel —
@@ -548,8 +559,8 @@ app.get('/', async (req, res) => {
   const parrain = codeParrain(req.query.parrain);
   if (parrain) return res.redirect(302, `/telecharger?parrain=${encodeURIComponent(parrain)}`);
 
-  const [bilan, tarifs, versionApp] = await Promise.all([
-    bilanPremium(), tarifsReels(), versionApk(),
+  const [bilan, chiffres, tarifs, versionApp] = await Promise.all([
+    bilanPremium(), chiffresVip(), tarifsReels(), versionApk(),
   ]);
 
   // Le prix reste `null` quand l'API n'a rien donné : la vue affiche alors la
@@ -560,7 +571,7 @@ app.get('/', async (req, res) => {
   }));
 
   res.render('index', {
-    site, bilan, productBlocks,
+    site, bilan, chiffres, productBlocks,
     pricingPlans, comparisonRows, faqs, versionApp,
     stores: storesPublies(), appStoreId,
     donneesStructurees: donneesStructurees(),

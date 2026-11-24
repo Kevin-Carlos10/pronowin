@@ -38,6 +38,25 @@ void main() {
       });
     }
   }
+
+  // La bande de preuve (« 30 derniers pronostics · 18 gagnés · +12.4 % ») :
+  // elle lisait `total`, que le serveur n'envoie pas — elle ne s'affichait
+  // jamais (corrigé le 24 novembre 2026). Réservée aux abonnés depuis le
+  // 23 novembre.
+  for (final (nom, utilisateur, attendu) in [
+    ('abonné : la bande de preuve', utilisateurPremium, findsOneWidget),
+    ('compte gratuit : pas de bande de preuve', utilisateurGratuit, findsNothing),
+  ]) {
+    testWidgets(nom, (tester) async {
+      var trouve = 0;
+      await mesurerEcran(tester,
+          ecran: const AccueilPage(), theme: AppTheme.light, echelle: 1.0,
+          surcharges: _donnees(), defilements: 0, utilisateur: utilisateur,
+          verifier: () => trouve = find.textContaining('30 derniers pronostics', findRichText: true)
+              .evaluate().length);
+      expect(trouve, attendu == findsOneWidget ? 1 : 0);
+    });
+  }
 }
 
 List<Override> _donnees() => [
@@ -52,7 +71,7 @@ List<Override> _donnees() => [
       nextPronosticProvider.overrideWith((ref) async => pronoApi('2')),
       statsJourProvider.overrideWith((ref) async =>
           {'winRate': 64, 'streak': 3, 'upcoming': 5, 'publishedToday': 6, 'totalFinished': 28}),
-      performance30Provider.overrideWith((ref) async => {'total': 30, 'wins': 18, 'roi': 12.4}),
+      performance30Provider.overrideWith((ref) async => {'total_pronostics': 30, 'wins': 18, 'roi': 12.4}),
       hierProvider.overrideWith((ref) async => const []),
       actualitesProvider.overrideWith((ref) async => const []),
       favoritesListProvider.overrideWith((ref) async => const []),

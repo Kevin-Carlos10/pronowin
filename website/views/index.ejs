@@ -106,6 +106,14 @@
     </div></section>
   <% } %>
 
+  <%# Des comptes, pas un taux (24 novembre 2026) : le taux de réussite est réservé aux abonnés. %>
+  <% if (!bilan && chiffres) { %>
+    <section class="performance-section" aria-labelledby="chiffres-vip-title"><div class="container performance-card">
+      <div class="mega-number chiffres-vip"><%= chiffres.vip_publies %></div>
+      <div><p class="eyebrow">Chaque jour, de nouvelles analyses</p><h2 id="chiffres-vip-title">Pronostics VIP publiés ces <%= chiffres.periode_jours %> derniers jours.</h2><p><% if (chiffres.competitions) { %>Sur <%= chiffres.competitions %> compétitions. <% } %><% if (chiffres.vip_aujourdhui) { %><%= chiffres.vip_aujourdhui %> <%= chiffres.vip_aujourdhui > 1 ? 'pronostics VIP' : 'pronostic VIP' %> pour les matchs d’aujourd’hui. <% } %>Le choix, l’analyse et l’indice de confiance de chacun sont réservés aux abonnés Premium.</p></div>
+    </div></section>
+  <% } %>
+
     <section id="parcours" class="section journey-section" aria-labelledby="journey-title"><div class="container journey-layout">
       <div class="journey-intro" data-reveal><p class="eyebrow">03 / Votre jour de match</p><h2 id="journey-title">Une lecture claire.<br>À chaque étape.</h2><p>Préparez vos choix, suivez vos matchs et prenez du recul sur vos résultats.</p><a href="#tarifs" class="text-link">Découvrir les formules <%- include('partials/icon', { name: 'arrow', size: 18 }) %></a></div>
       <ol class="journey-steps">

@@ -2062,4 +2062,8 @@ const englishMessages = <String, String>{
   "Suis tes équipes favorites": "Follow your favourite teams",
   "Alertes de tes matchs suivis": "Alerts for the matches you follow",
   "Tes favoris sur tous tes appareils": "Your favourites on all your devices",
+  "pronostics VIP publiés en {arg0} jours": "VIP predictions published in {arg0} days",
+  "compétitions couvertes": "competitions covered",
+  "pronostic VIP aujourd'hui": "VIP prediction today",
+  "pronostics VIP aujourd'hui": "VIP predictions today",
 };

@@ -19,6 +19,7 @@ import { repondreErreur, ErreurMetier } from '../utils/erreurs';
 import { articlesDuMatch } from '../services/resumes_match.service';
 import { bilanReserve, calculerBilanPremium } from '../services/bilan_premium';
 import { statsSansTaux, voitLeTaux } from '../services/taux_reserve';
+import { calculerChiffresVip } from '../services/chiffres_vip';
 import { resumeVotes, voter } from '../services/votes_match.service';
 import { resumeJoueurDuMatch, voterJoueur } from '../services/joueur_du_match.service';
 import {
@@ -200,6 +201,21 @@ export const getBilanPremium = async (req: AuthRequest, res: Response) => {
  * un refus, elles le traitent déjà (la bande de l'accueil se tait, la page
  * propose de réessayer).
  */
+/**
+ * GET /pronostics/chiffres-vip — les chiffres du mur Premium et de la
+ * vitrine : pronostics VIP publiés sur trente jours, compétitions couvertes,
+ * pronostics VIP du jour (`chiffres_vip.ts`). Les mêmes pour tous.
+ */
+export const getChiffresVip = async (_req: Request, res: Response) => {
+  try {
+    const cached = cache.get<any>(CACHE_KEYS.chiffresVip);
+    if (cached) { res.json(cached); return; }
+    const chiffres = await calculerChiffresVip();
+    cache.set(CACHE_KEYS.chiffresVip, chiffres, CACHE_TTL.stats);
+    res.json(chiffres);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
 export const getPerformance = async (req: AuthRequest, res: Response) => {
   try {
     if (!(await voitLeTaux(req.userId))) {

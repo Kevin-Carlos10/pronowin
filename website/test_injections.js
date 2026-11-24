@@ -121,6 +121,18 @@ const INJECTIONS = [
     vers: '  <% if (true) { %>',
   },
   {
+    nom: 'les chiffres VIP s\'affichent sans leur premier compte',
+    fichier: 'server.js',
+    de: '  return d && Number.isInteger(d.vip_publies) ? d : null;',
+    vers: '  return d;',
+  },
+  {
+    nom: 'le site ne lit plus les chiffres VIP du serveur',
+    fichier: 'server.js',
+    de: "  const d = await lireJson('/pronostics/chiffres-vip');",
+    vers: '  const d = null;',
+  },
+  {
     // Cette injection retirait le filtre. Elle ne mordait plus des que les deux
     // adresses ont ete renseignees : sans entree vide, retirer le filtre ne
     // change rien. Une injection qui ne peut plus echouer ne teste rien — elle

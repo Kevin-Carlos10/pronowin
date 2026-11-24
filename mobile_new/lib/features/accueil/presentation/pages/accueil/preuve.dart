@@ -17,7 +17,10 @@ class _ProofBand extends ConsumerWidget {
     final perf = ref.watch(performance30Provider).valueOrNull;
     if (perf == null) return const SizedBox.shrink();
 
-    final total = (perf['total'] as num?)?.toInt() ?? 0;
+    // `total_pronostics` : c'est le nom que le serveur envoie. La bande lisait
+    // `total`, absent de la réponse — elle ne s'est jamais affichée
+    // (corrigé le 24 novembre 2026).
+    final total = (perf['total_pronostics'] as num?)?.toInt() ?? 0;
     // Sous 10 pronostics réglés, un pourcentage n'a aucune valeur statistique
     // et se retourne contre nous à la première mauvaise série.
     if (total < 10) return const SizedBox.shrink();

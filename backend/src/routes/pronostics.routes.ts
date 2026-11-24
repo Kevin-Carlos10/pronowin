@@ -28,6 +28,9 @@ r.get ('/performance', optionalAuthMiddleware, C.getPerformance);
 // Public : le mur Premium l'appelle avant toute connexion, puisqu'il sert
 // justement a convaincre un visiteur de s'abonner.
 r.get ('/bilan-premium', optionalAuthMiddleware, C.getBilanPremium);
+// Ce que l'abonnement donne — des comptes, pas un taux (24 novembre 2026) :
+// public, le mur Premium et la vitrine le lisent avant toute connexion.
+r.get ('/chiffres-vip', C.getChiffresVip);
 // Avant `/:id` : sans cela Express prendrait « top-scorers » pour un identifiant.
 r.get ('/top-scorers', optionalAuthMiddleware, C.getTopScorers);
 // Le classement d'une compétition, pour sa page (10 novembre 2026).

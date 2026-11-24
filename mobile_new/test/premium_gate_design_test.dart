@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
 import 'package:pronowin/shared/widgets/premium_gate_sheet.dart';
 import 'package:pronowin/features/abonnement/presentation/providers/subscription_provider.dart';
-import 'package:pronowin/features/pronostics/presentation/providers/bilan_premium_provider.dart';
+import 'package:pronowin/shared/widgets/chiffres_vip.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'aides/banc_ecran.dart';
 
@@ -30,7 +30,8 @@ void main() {
               currentSubscriptionProvider.overrideWith(
                 (ref) async => <String, dynamic>{},
               ),
-              bilanPremiumProvider.overrideWith((ref) async => null),
+              chiffresVipProvider.overrideWith((ref) async =>
+                  const ChiffresVip(periodeJours: 30, vipPublies: 42, competitions: 12, vipAujourdhui: 3)),
             ],
             child: RepaintBoundary(
               key: key,

@@ -21,6 +21,7 @@ import '../../domain/essai_gratuit.dart';
 import '../../../../shared/utils/code_ussd.dart';
 import '../../../../shared/utils/montant.dart';
 import '../../../../shared/widgets/country_pill_selector.dart';
+import '../../../../shared/widgets/chiffres_vip.dart';
 import '../../domain/tarifs_premium.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/iap_provider.dart';
@@ -2496,6 +2497,11 @@ class _PaywallPage extends StatelessWidget {
           style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
           textAlign: TextAlign.center,
         ).animate(delay: 140.ms).fadeIn(duration: 350.ms),
+        // Ce que l'abonnement donne, en chiffres réels (24 novembre 2026) :
+        // des comptes, pas un taux, réservé aux abonnés. Rien s'ils sont trop
+        // petits pour être annoncés.
+        const SizedBox(height: 18),
+        const BandeauChiffresVip(surFondSombre: true),
         // La preuve sociale a été retirée, faute d'être vraie.
         //
         // Il y avait ici « 2K+ Utilisateurs Actifs » écrit en dur, précédé de
@@ -2505,9 +2511,8 @@ class _PaywallPage extends StatelessWidget {
         //
         // Même famille que le « N°1 en Afrique de l'Ouest » et le « +68 % de
         // réussite » déjà retirés, et même règle : sur l'écran qui demande de
-        // payer, ce qu'on affirme doit être mesuré. Le taux de réussite réel
-        // est déjà affiché par `_TauxReussiteReel` dans la feuille d'accroche,
-        // et il se tait quand l'échantillon ne permet rien d'affirmer.
+        // payer, ce qu'on affirme doit être mesuré. Les chiffres VIP
+        // ci-dessus le sont, par le serveur.
         //
         // À rebrancher le jour où un compteur d'abonnés existe côté serveur.
       ]),

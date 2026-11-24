@@ -116,6 +116,20 @@ const API_SOUS_SEUIL = {
   '/subscriptions/plans': API_COMPLETE['/subscriptions/plans'],
 };
 
+// Le taux réservé aux abonnés (23 novembre 2026) : le serveur ne publie plus
+// de bilan pour un visiteur, mais des comptes (24 novembre 2026).
+const API_CHIFFRES = {
+  '/pronostics/bilan-premium': { taux_reussite: null, periode_jours: 30, affichable: false, reserve_premium: true },
+  '/pronostics/chiffres-vip': { periode_jours: 30, vip_publies: 42, competitions: 12, vip_aujourdhui: 3 },
+  '/subscriptions/plans': API_COMPLETE['/subscriptions/plans'],
+};
+
+// Le premier compte sous le seuil d'annonce : le serveur le tait.
+const API_CHIFFRES_SOUS_SEUIL = {
+  ...API_CHIFFRES,
+  '/pronostics/chiffres-vip': { periode_jours: 30, vip_publies: null, competitions: 12, vip_aujourdhui: 1 },
+};
+
 /* ─── Affirmations interdites ─────────────────────────────────────────── */
 
 // Chacune était sur la page. Le commentaire dit ce qui est vrai à la place.
@@ -529,6 +543,22 @@ test('le grand chiffre est le taux du serveur, ou rien', async () => {
   const texteSousSeuil = sousSeuil.accueil.html.replace(/<[^>]*>/g, ' ');
   assert.ok(!/\b73\b/.test(texteSousSeuil),
     'un taux sous 80 % (73) ne doit pas apparaître dans la page');
+});
+
+test('sans taux publié, les chiffres VIP du serveur — ou rien', async () => {
+  const avec = await rendre(API_CHIFFRES);
+  assert.ok(/mega-number chiffres-vip">42</.test(avec.accueil.html),
+    'le grand chiffre devrait être le nombre de pronostics VIP publiés (42)');
+  const texte = avec.accueil.html.replace(/<[^>]*>/g, ' ');
+  assert.ok(/Sur 12 compétitions/.test(texte), 'les compétitions couvertes (12) manquent');
+  assert.ok(/3 pronostics VIP pour les matchs/.test(texte), 'les pronostics VIP du jour (3) manquent');
+  assert.ok(!/Taux de réussite sur les pronostics/.test(texte), 'aucun taux ne doit être annoncé');
+
+  const sous = await rendre(API_CHIFFRES_SOUS_SEUIL);
+  assert.ok(!sous.accueil.html.includes('mega-number'),
+    'sans le nombre de pronostics VIP publiés, la section doit disparaître');
+  const texteSous = sous.accueil.html.replace(/<[^>]*>/g, ' ');
+  assert.ok(!/Sur 12 compétitions/.test(texteSous), 'un chiffre de la section fuit sans la section');
 });
 
 test('aucun lien ne mène nulle part', async () => {

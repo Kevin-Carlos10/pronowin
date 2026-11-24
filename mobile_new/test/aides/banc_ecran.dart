@@ -50,6 +50,8 @@ Future<({List<String> debordements, List<String> autres})> mesurerEcran(
   /// Appelé une fois l'écran rendu, avant le défilement : pour vérifier ce
   /// qu'il affiche en plus de ce qui déborde.
   void Function()? verifier,
+  /// Un autre compte connecté que [utilisateurGratuit].
+  UserEntity? utilisateur,
 }) async {
   SharedPreferences.setMockInitialValues({'pseudo_nudge_dismissed': true});
   tester.view.physicalSize = Size(largeur * 2, 800 * 2);
@@ -70,7 +72,7 @@ Future<({List<String> debordements, List<String> autres})> mesurerEcran(
 
   try {
     await tester.pumpWidget(ProviderScope(
-      overrides: [...donneesCommunes(), ...surcharges],
+      overrides: [...donneesCommunes(utilisateur: utilisateur), ...surcharges],
       // Un routeur réel : plusieurs écrans lisent leur position dans la pile.
       // Toute autre destination mène à une page vide.
       child: MaterialApp.router(

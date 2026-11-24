@@ -10,7 +10,7 @@ import '../../features/abonnement/presentation/providers/subscription_provider.d
 import '../../features/abonnement/presentation/providers/iap_provider.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../utils/premium_nav.dart';
-import '../../features/pronostics/presentation/providers/bilan_premium_provider.dart';
+import 'chiffres_vip.dart';
 
 // Appeler depuis n'importe où pour afficher la modale d'upgrade Premium.
 // [matchLabel] : ex. "PSG vs Real Madrid" — affiché en contexte.
@@ -191,7 +191,9 @@ class _PremiumGateSheet extends ConsumerWidget {
         ..._benefits.map(
           (b) => _BenefitRow(icon: b.$1, title: b.$2, subtitle: b.$3),
         ),
-        const _TauxReussiteReel(),
+        // Des comptes, pas un taux : le taux de réussite est réservé aux
+        // abonnés (23 novembre 2026), et cette feuille s'adresse aux autres.
+        const BandeauChiffresVip(),
         const SizedBox(height: 8),
       ],
     );
@@ -340,76 +342,6 @@ class _PremiumGateSheet extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Taux de réussite réel des pronostics Premium, ou rien.
-///
-/// « Rien » est un état de plein droit ici, et c'est tout l'intérêt : sur un
-/// échantillon trop mince, trois pronostics gagnés donnent « 100 % », ce qui
-/// serait la même promesse creuse que le « +68 % » codé en dur qu'on remplace.
-/// Le serveur tranche (`echantillon_suffisant`), l'écran obéit.
-///
-/// Le détail gagnés / perdus accompagne toujours le pourcentage : un taux seul
-/// ne se vérifie pas, avec « 34 gagnés sur 47 » en face il se vérifie.
-class _TauxReussiteReel extends ConsumerWidget {
-  const _TauxReussiteReel();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bilan = ref.watch(bilanPremiumProvider).valueOrNull;
-    if (bilan == null || !bilan.affichable) return const SizedBox.shrink();
-
-    final taux = bilan.tauxReussite!;
-    final couleur = taux >= 60 ? context.cl.success : context.cl.textP;
-
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: couleur.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: couleur.withValues(alpha: 0.30), width: 0.8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.workspace_premium_rounded, color: couleur, size: 20),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr(context, "{arg0} % de réussite", [taux]),
-                  style: TextStyle(
-                    color: couleur,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  tr(
-                    context,
-                    "{arg0} gagnés sur {arg1} pronostics VIP tranchés — {arg2} derniers jours",
-                    [
-                      bilan.gagnes,
-                      bilan.pronosticsTranches,
-                      bilan.periodeJours,
-                    ],
-                  ),
-                  style: TextStyle(
-                    color: context.cl.textM,
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
