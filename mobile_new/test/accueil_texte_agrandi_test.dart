@@ -57,6 +57,15 @@ void main() {
       expect(trouve, attendu == findsOneWidget ? 1 : 0);
     });
   }
+
+  testWidgets("la carte d'un match à plusieurs pronostics annonce « +2 pronos »", (tester) async {
+    var pastilles = 0;
+    await mesurerEcran(tester,
+        ecran: const AccueilPage(), theme: AppTheme.light, echelle: 1.0,
+        surcharges: _donnees(), defilements: 0,
+        verifier: () => pastilles = find.text('+2 pronos').evaluate().length);
+    expect(pastilles, greaterThan(0));
+  });
 }
 
 List<Override> _donnees() => [
@@ -64,9 +73,10 @@ List<Override> _donnees() => [
       isServingFromCacheProvider.overrideWithValue(false),
       currentSubscriptionProvider.overrideWith((ref) async => {'plan': 'free', 'days_left': 0}),
       pronosticsJourProvider.overrideWith((ref) async => [
-            pronoApi('1', status: 'live', dans: const Duration(minutes: -30)),
+            // Des matchs à plusieurs pronostics (23 novembre 2026).
+            {...pronoApi('1', status: 'live', dans: const Duration(minutes: -30)), 'autres_pronostics': 2},
             pronoApi('2'),
-            pronoApi('3', dans: const Duration(hours: 3)),
+            {...pronoApi('3', dans: const Duration(hours: 3)), 'autres_pronostics': 2},
           ]),
       nextPronosticProvider.overrideWith((ref) async => pronoApi('2')),
       statsJourProvider.overrideWith((ref) async =>

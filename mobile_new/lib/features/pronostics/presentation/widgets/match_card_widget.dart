@@ -1,4 +1,5 @@
 import 'package:pronowin/l10n/app_strings.dart';
+import 'pastille_autres_pronostics.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../core/utils/motion.dart';
@@ -78,10 +79,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
     // Plusieurs pronostics par match (23 novembre 2026) : la carte montre le
     // principal et annonce les autres, qui sont dans la fiche.
     final autres = m.nbAutresPronostics;
-    final annonceAutres = autres > 0
-        ? AppStrings.of(context).count(autres,
-            one: " {arg0} autre pronostic sur ce match.", other: " {arg0} autres pronostics sur ce match.")
-        : '';
+    final annonceAutres = PastilleAutresPronostics.annonce(context, autres);
     final semanticLabel = (locked
         ? tr(context, "{arg0} contre {arg1}, {arg2}. Contenu premium verrouillé.", [m.homeTeam, m.awayTeam, m.league])
         : noProno
@@ -228,7 +226,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           ],
           if (_match.nbAutresPronostics > 0) ...[
             const SizedBox(width: 6),
-            _PastilleAutres(nombre: _match.nbAutresPronostics),
+            PastilleAutresPronostics(nombre: _match.nbAutresPronostics),
           ],
           const Spacer(),
           // Suivre le match (suivre_match.dart)
@@ -1099,26 +1097,6 @@ class _BetBadge extends StatelessWidget {
       ]),
     );
   }
-}
-
-/// « +1 prono » : le match a d'autres pronostics que celui de la carte
-/// (plusieurs par match, 23 novembre 2026). Ils sont dans la fiche du match.
-class _PastilleAutres extends StatelessWidget {
-  final int nombre;
-  const _PastilleAutres({required this.nombre});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    key: const Key('carte-autres-pronostics'),
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-    decoration: BoxDecoration(
-      color: AppColors.primary.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(8)),
-    child: Text(
-      AppStrings.of(context).count(nombre, one: '+{arg0} prono', other: '+{arg0} pronos'),
-      maxLines: 1,
-      style: TextStyle(color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700)),
-  );
 }
 
 // ─── Helper Hero : transition circulaire fluide ───────────────────────────────

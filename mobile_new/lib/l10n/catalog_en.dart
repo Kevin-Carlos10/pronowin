@@ -2066,4 +2066,5 @@ const englishMessages = <String, String>{
   "compétitions couvertes": "competitions covered",
   "pronostic VIP aujourd'hui": "VIP prediction today",
   "pronostics VIP aujourd'hui": "VIP predictions today",
+  "Enregistrée dans ta bankroll": "Saved in your bankroll",
 };

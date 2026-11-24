@@ -15,6 +15,11 @@ part of '../match_detail_page.dart';
 /// Sur iPhone, pas de cote (`sansPariProvider`) : la fiche reçoit déjà le
 /// match sans cotes (`MatchEntity.sansCotes`), autres pronostics compris.
 /// Porte sa propre marge : sans autre pronostic, elle ne laisse pas de trou.
+///
+/// Depuis le 24 novembre 2026, chaque pronostic ouvert se valide dans la
+/// bankroll (avant le coup d'envoi, pas sur iPhone) et se partage en image,
+/// comme le principal : la fiche leur passe le match portant ce pronostic
+/// (`MatchEntity.avecPronostic`).
 class _AutresPronostics extends ConsumerWidget {
   final MatchEntity match;
   /// L'utilisateur a un Premium en cours.
@@ -25,6 +30,9 @@ class _AutresPronostics extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final autres = match.autresPronostics;
     if (autres.isEmpty) return const SizedBox.shrink();
+    // Comme le principal : la saisie ferme au coup d'envoi, et l'iPhone n'a
+    // pas de bankroll.
+    final miserOuvert = !ref.watch(sansPariProvider) && match.status == MatchStatus.upcoming;
     return Padding(
       key: const Key('autres-pronostics'),
       padding: const EdgeInsets.only(bottom: 16),
@@ -55,6 +63,7 @@ class _AutresPronostics extends ConsumerWidget {
                 utilisateurPremium: abonne,
               ),
               onPremium: () => goToPremium(context, ref),
+              miserOuvert: miserOuvert,
             ),
           ],
         ]),
@@ -68,8 +77,9 @@ class _LigneAutrePronostic extends StatelessWidget {
   final MatchEntity match;
   final bool verrouille;
   final VoidCallback onPremium;
+  final bool miserOuvert;
   const _LigneAutrePronostic({required this.pronostic, required this.match,
-    required this.verrouille, required this.onPremium});
+    required this.verrouille, required this.onPremium, this.miserOuvert = false});
 
   /// « Marché : Choix », comme la carte du pronostic principal.
   (String?, String) _marcheEtChoix() {
@@ -102,11 +112,15 @@ class _LigneAutrePronostic extends StatelessWidget {
       _verdict(context),
     ]);
 
-    return Semantics(
-      label: annonce,
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+    final porteur = match.avecPronostic(pronostic);
+    final miser = miserOuvert && cote > 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Semantics(
+        label: annonce,
+        excludeSemantics: true,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -148,7 +162,37 @@ class _LigneAutrePronostic extends StatelessWidget {
               color: context.cl.textS, fontSize: 13, height: 1.4)),
           ],
         ]),
-      ),
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          // Toute la largeur disponible ; le bouton n'en prend que ce qu'il
+          // lui faut, et son libellé ne se tronque plus.
+          Expanded(
+            child: miser
+                ? Align(alignment: Alignment.centerLeft,
+                    child: _MiserButton(match: porteur, compact: true))
+                : const SizedBox.shrink(),
+          ),
+          const SizedBox(width: 8),
+          Tooltip(
+            message: tr(context, "Partager ce pronostic"),
+            child: Material(
+              color: Colors.transparent,
+              shape: CircleBorder(side: BorderSide(color: context.cl.border)),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: Key('partager-${pronostic.id}'),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  _showShareSheet(context, porteur);
+                },
+                child: SizedBox(width: 38, height: 38,
+                  child: Icon(Icons.ios_share_rounded, size: 18, color: context.cl.textS)),
+              ),
+            ),
+          ),
+        ]),
+      ]),
     );
   }
 

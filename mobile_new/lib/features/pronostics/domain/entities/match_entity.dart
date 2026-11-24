@@ -136,6 +136,25 @@ class MatchEntity extends Equatable {
     autresPronostics: [for (final a in autresPronostics) a.sansCote()],
   );
 
+  /// Le même match, portant [a] à la place de son pronostic principal : pour
+  /// miser sur un autre pronostic ou le partager en image avec les écrans du
+  /// principal (24 novembre 2026). Son identifiant est celui de [a] — c'est
+  /// lui que la bankroll enregistre.
+  MatchEntity avecPronostic(AutrePronostic a) => MatchEntity(
+    id: a.id, league: league, leagueCountry: leagueCountry,
+    homeTeam: _homeTeam, awayTeam: _awayTeam,
+    homeTeamLogo: homeTeamLogo, awayTeamLogo: awayTeamLogo,
+    matchDate: matchDate, status: status, homeScore: homeScore, awayScore: awayScore,
+    elapsed: elapsed,
+    predictionType: PredictionType.other, predictionLabel: a._predictionLabel,
+    predictionLabelEn: a.predictionLabelEn,
+    oddsRecommended: a.oddsRecommended, oddsHome: oddsHome, oddsDraw: oddsDraw, oddsAway: oddsAway,
+    confidenceScore: a.confidenceScore, confidencePct: a.confidencePct, isPremium: a.isPremium,
+    analystNote: a._analystNote, analystNoteEn: a.analystNoteEn,
+    homeFormPoints: homeFormPoints, awayFormPoints: awayFormPoints,
+    hasPronostic: true, isLocked: a.isLocked, result: a.result,
+  );
+
   ConfidenceLevel get confidence {
     if (confidenceScore >= 5) return ConfidenceLevel.veryHigh;
     if (confidenceScore >= 4) return ConfidenceLevel.high;

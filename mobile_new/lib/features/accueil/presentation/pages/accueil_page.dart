@@ -44,6 +44,7 @@ import 'package:pronowin/shared/utils/initiale.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import '../../../../shared/widgets/code_promo.dart';
 import '../../../pronostics/presentation/widgets/minute_direct.dart';
+import '../../../pronostics/presentation/widgets/pastille_autres_pronostics.dart';
 import '../../../competitions/competitions.dart';
 import '../../../notifications/presentation/demande_notifications.dart';
 

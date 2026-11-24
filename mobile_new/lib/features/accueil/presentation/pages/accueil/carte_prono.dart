@@ -53,6 +53,9 @@ class _PronosticCard extends ConsumerWidget {
       utilisateurPremium: isPremium,
     );
     final isLive     = status == 'live';
+    // Plusieurs pronostics par match (23 novembre 2026) : les autres sont
+    // annoncés ici, montrés dans la fiche.
+    final autres     = (prono['autres_pronostics'] as num?)?.toInt() ?? 0;
     // Ce que le serveur accepte encore d'enregistrer.
     final pariOuvert = pariEncoreOuvert(
       resultat:    prono['result'] as String?,
@@ -110,13 +113,16 @@ class _PronosticCard extends ConsumerWidget {
         annonce.write(tr(context, ", indice de confiance {arg0}", [MatchEntity.affichageConfiance(confPct)]));
       }
     }
+    annonce.write(PastilleAutresPronostics.annonce(context, autres));
 
     return Semantics(
       button: true,
       label: annonce.toString(),
       excludeSemantics: true,
       child: GestureDetector(
-      onTap: isLocked ? onLockedTap : onTap,
+      // Verrouillé, la carte mène à l'offre — sauf si le match a d'autres
+      // pronostics : la fiche les montre, gratuits compris.
+      onTap: isLocked && autres == 0 ? onLockedTap : onTap,
       child: Container(
         margin: compact ? EdgeInsets.zero : const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
@@ -167,6 +173,10 @@ class _PronosticCard extends ConsumerWidget {
                     style: TextStyle(color: context.cl.textM, fontSize: 11),
                   ),
                 ),
+                if (autres > 0) ...[
+                  PastilleAutresPronostics(nombre: autres),
+                  const SizedBox(width: 6),
+                ],
                 if (isLive)
                   Container(
                     padding: const EdgeInsets.symmetric(

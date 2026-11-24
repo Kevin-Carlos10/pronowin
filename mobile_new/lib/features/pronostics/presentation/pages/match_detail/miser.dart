@@ -7,7 +7,10 @@ part of '../match_detail_page.dart';
 
 class _MiserButton extends ConsumerStatefulWidget {
   final MatchEntity match;
-  const _MiserButton({required this.match});
+  /// Petit bouton au contour vert, pour une ligne des « Autres pronostics »
+  /// (24 novembre 2026) ; le grand bouton plein reste celui du principal.
+  final bool compact;
+  const _MiserButton({required this.match, this.compact = false});
 
   @override
   ConsumerState<_MiserButton> createState() => _MiserButtonState();
@@ -19,6 +22,15 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
   @override
   Widget build(BuildContext context) {
     final alreadyBet = ref.watch(hasBetOnPronosticProvider(widget.match.id));
+
+    if ((_betPlaced || alreadyBet) && widget.compact) {
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.check_circle_rounded, color: context.cl.success, size: 16),
+        const SizedBox(width: 6),
+        Flexible(child: Text(tr(context, "Enregistrée dans ta bankroll"),
+          style: TextStyle(color: context.cl.success, fontSize: 12, fontWeight: FontWeight.w600))),
+      ]);
+    }
 
     if (_betPlaced || alreadyBet) {
       return Container(
@@ -65,7 +77,7 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
         );
         if (ok) setState(() => _betPlaced = true);
       },
-      child: Container(
+      child: widget.compact ? _compact(context) : Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -102,4 +114,20 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
       ),
     ));
   }
+
+  Widget _compact(BuildContext context) => Container(
+    key: Key('miser-${widget.match.id}'),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    decoration: BoxDecoration(
+      color: context.cl.success.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: context.cl.success.withValues(alpha: 0.45))),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.account_balance_wallet_rounded, color: context.cl.success, size: 16),
+      const SizedBox(width: 6),
+      Flexible(child: Text(tr(context, "Valider ma sélection"), maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: context.cl.success, fontSize: 13, fontWeight: FontWeight.w700))),
+    ]),
+  );
 }

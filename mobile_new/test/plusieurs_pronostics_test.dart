@@ -82,6 +82,16 @@ void main() {
       expect(MatchModel.fromJson(MatchModel.fromJson(_fiche(autres: 3)).toJson()).nbAutresPronostics, 3);
     });
 
+    test('le match portant un autre pronostic : son id, son choix, sa cote', () {
+      final m = MatchModel.fromJson(_fiche());
+      final p = m.avecPronostic(m.autresPronostics[0]);
+      expect(p.id, 'p2');
+      expect(p.oddsRecommended, 1.95);
+      expect(p.pourcentageConfiance, 62);
+      expect(p.homeTeam, m.homeTeam);
+      expect(p.displayPredictionLabel, contains('2.5'));
+    });
+
     test('sur iPhone, les autres pronostics perdent aussi leur cote', () {
       final sans = MatchModel.fromJson(_fiche(vipOuvert: true)).sansCotes();
       expect(sans.autresPronostics.every((a) => a.oddsRecommended == 0), isTrue);
@@ -157,6 +167,31 @@ void main() {
       expect(dansLaSection(find.text('COTE')), findsNothing);
       expect(dansLaSection(find.text('1.95')), findsNothing);
       expect(dansLaSection(find.text('Confiance 62 %')), findsOneWidget);
+      // Ni bankroll : pas de « Valider ma sélection ».
+      expect(find.byKey(const Key('miser-p2')), findsNothing);
+      expect(find.byKey(const Key('partager-p2')), findsOneWidget);
+    });
+
+    testWidgets('chaque pronostic ouvert se valide dans la bankroll et se partage ; le VIP fermé, non', (t) async {
+      await ouvrir(t, _fiche());
+      expect(find.byKey(const Key('miser-p2')), findsOneWidget);
+      expect(find.byKey(const Key('miser-p3')), findsNothing);
+      expect(find.byKey(const Key('partager-p3')), findsNothing);
+
+      final partager = find.byKey(const Key('partager-p2'));
+      await t.ensureVisible(partager);
+      await t.tap(partager);
+      await t.pumpAndSettle();
+      // La feuille de partage, sur ce pronostic-là.
+      expect(find.text('Partager ce pronostic'), findsWidgets);
+      expect(find.textContaining('Plus de 2.5'), findsWidgets);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('match commencé : plus de mise', (t) async {
+      await ouvrir(t, {..._fiche(), 'status': 'live'});
+      expect(find.byKey(const Key('miser-p2')), findsNothing);
+      expect(find.byKey(const Key('partager-p2')), findsOneWidget);
     });
 
     testWidgets('un seul pronostic : pas de section', (t) async {
