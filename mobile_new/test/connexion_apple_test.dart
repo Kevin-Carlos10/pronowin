@@ -98,17 +98,17 @@ void main() {
     testWidgets('sur iPhone, « Continuer avec Apple » est proposé, entre Google et l\'e-mail', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       await monter(tester);
-      final apple = tester.getTopLeft(find.text('Continuer avec Apple')).dy;
-      expect(tester.getTopLeft(find.text('Continuer avec Google')).dy, lessThan(apple));
-      expect(tester.getTopLeft(find.text('Continuer avec un e-mail')).dy, greaterThan(apple));
+      final apple = tester.getTopLeft(find.text('CONTINUER AVEC APPLE')).dy;
+      expect(tester.getTopLeft(find.text('CONTINUER AVEC GOOGLE')).dy, lessThan(apple));
+      expect(tester.getTopLeft(find.text('CONTINUER AVEC UN E-MAIL')).dy, greaterThan(apple));
       debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('sur Android, il n\'apparaît pas', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       await monter(tester);
-      expect(find.text('Continuer avec Apple'), findsNothing);
-      expect(find.text('Continuer avec Google'), findsOneWidget);
+      expect(find.text('CONTINUER AVEC APPLE'), findsNothing);
+      expect(find.text('CONTINUER AVEC GOOGLE'), findsOneWidget);
       debugDefaultTargetPlatformOverride = null;
     });
   });

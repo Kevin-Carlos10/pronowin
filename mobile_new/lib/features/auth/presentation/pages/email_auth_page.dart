@@ -6,7 +6,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../../shared/widgets/pw_button.dart';
 import '../../data/datasources/apple_auth_service.dart';
 import '../providers/apres_connexion.dart';
@@ -34,20 +33,17 @@ const largeurConnexion = 420.0;
 /// « awa.gmail.com ».
 final _adresseEmail = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
-/// Le bandeau de la marque, plus sombre que l'orange des boutons : le texte
-/// blanc y tient 4,5:1 (#D2470E), et davantage vers le bas (#A8330A).
-const _bandeau = [Color(0xFFD2470E), Color(0xFFA8330A)];
-
 /// Écran de connexion — accessible uniquement à la demande (bouton « Se
 /// connecter » ou accès à une fonctionnalité réservée). L'application
 /// elle-même reste consultable sans compte.
 ///
-/// Refait le 20 novembre 2026 d'après l'écran de connexion d'Alibaba, montré
-/// par l'utilisateur : un grand bandeau de la marque en haut (le nom, une
-/// accroche, une petite scène), une colline du fond de page qui le borde, puis
-/// les chemins de connexion en pilules, tous du même poids, et « Besoin
-/// d'aide ? ». Pas de choix « connexion ou inscription » à faire soi-même : le
-/// serveur sait si l'adresse existe déjà.
+/// Refait le 24 novembre 2026 d'après l'écran « Connexion ou inscription »
+/// montré par l'utilisateur : une feuille claire aux coins arrondis posée sur
+/// le bleu nuit, deux boutons ronds (retour, fermer) autour du titre, une
+/// carte de ce qu'apporte un compte — trois avantages réels, rien d'inventé —,
+/// puis les chemins de connexion en rectangles de même taille, et le
+/// consentement juste dessous. Pas de choix « connexion ou inscription » à
+/// faire soi-même : le serveur sait si l'adresse existe déjà.
 class EmailAuthPage extends ConsumerStatefulWidget {
   /// Route vers laquelle rediriger une fois connecté (fonctionnalité que
   /// l'invité tentait d'atteindre).
@@ -95,6 +91,8 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
     setState(() => _saisieEmail = false);
   }
 
+  void _fermer() => retourOuAller(context, repli: _repli);
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -127,309 +125,233 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
       }
     });
 
-    final media = MediaQuery.of(context);
-    // Clavier ouvert (saisie de l'adresse) : le bandeau se replie pour
-    // laisser le champ et son bouton à l'écran.
-    final clavier = media.viewInsets.bottom > 0;
-    final hauteurBandeau = clavier
-        ? (media.padding.top + 150)
-        : (media.size.height * 0.46).clamp(330.0, 460.0);
+    // Derrière la feuille : le bleu nuit de la marque, noir en thème sombre
+    // pour que la feuille s'en détache encore.
+    final fond = context.isDark ? Colors.black : const Color(0xFF0D1530);
+    final feuille = _couleurFeuille(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Icônes de la barre d'état en blanc, sur le bandeau.
+      // Icônes de la barre d'état en blanc, sur le fond nuit.
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: context.cl.bg,
+        backgroundColor: fond,
         resizeToAvoidBottomInset: true,
-        body: LayoutBuilder(builder: (context, contraintes) => SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: contraintes.maxHeight),
-            child: IntrinsicHeight(
+        body: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Container(
+              key: const Key('connexion-feuille'),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: feuille,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
               child: Column(children: [
-                _Bandeau(
-                  hauteur: hauteurBandeau.toDouble(),
-                  compact: clavier,
-                  onFermer: () => retourOuAller(context, repli: _repli),
+                _EnTete(
+                  // Le retour ramène au choix depuis la saisie de l'adresse ;
+                  // ailleurs, il referme l'écran, comme la croix.
+                  onRetour: _saisieEmail && !enCours ? _revenirAuChoix : _fermer,
+                  onFermer: _fermer,
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: largeurConnexion),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      child: _saisieEmail
-                          ? _EtapeEmail(
-                              key: const ValueKey('etape-email'),
-                              formKey:    _formKey,
-                              controleur: _emailCtrl,
-                              enCours:    enCours,
-                              onValider:  _submit,
-                              onRetour:   _revenirAuChoix,
-                            )
-                          : _ChoixFournisseur(
-                              key: const ValueKey('etape-choix'),
-                              enCours: enCours,
-                              onGoogle: () {
-                                _fournisseur = 'google';
-                                ref.read(authProvider.notifier).loginWithGoogle();
-                              },
-                              // Sur iPhone seulement (règle 4.8 de l'App Store).
-                              onApple: AppleAuthService.disponible
-                                  ? () {
-                                      _fournisseur = 'apple';
-                                      ref.read(authProvider.notifier).loginWithApple();
-                                    }
-                                  : null,
-                              onEmail: _ouvrirSaisieEmail,
-                            ),
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                // En bas : de l'aide, et le consentement, visible quel que
-                // soit l'état de l'écran.
-                SafeArea(
-                  top: false,
-                  minimum: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                Expanded(
+                  child: LayoutBuilder(builder: (context, contraintes) => SingleChildScrollView(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: largeurConnexion),
-                      child: Column(children: [
-                        TextButton(
-                          key: const Key('connexion-aide'),
-                          // Un objet déjà rempli : la demande se traite sans
-                          // échange préalable.
-                          onPressed: () => ContactSupport.ouvrirEmail(
-                            sujet: tr(context, "Problème de connexion")),
-                          style: TextButton.styleFrom(foregroundColor: context.cl.textS),
-                          child: Text(tr(context, "Besoin d'aide ?"),
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                        ),
-                        const SizedBox(height: 4),
-                        _Consentement(
-                          cgu: () => PagesLegales.ouvrir(
-                            context,
-                            PagesLegales.cgu(
-                              estStore: ref.read(isStoreBuildProvider),
-                              sansPari: ref.read(sansPariProvider)),
-                            titre: PagesLegales.titreCgu),
-                          confidentialite: () => PagesLegales.ouvrir(
-                            context, PagesLegales.confidentialite,
-                            titre: PagesLegales.titreConfidentialite),
-                        ),
-                      ]),
+                      constraints: BoxConstraints(minHeight: contraintes.maxHeight),
+                      child: IntrinsicHeight(
+                        child: Column(children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: largeurConnexion),
+                              child: Column(children: [
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  child: _saisieEmail
+                                      ? _EtapeEmail(
+                                          key: const ValueKey('etape-email'),
+                                          formKey:    _formKey,
+                                          controleur: _emailCtrl,
+                                          enCours:    enCours,
+                                          onValider:  _submit,
+                                          onRetour:   _revenirAuChoix,
+                                        )
+                                      : _ChoixFournisseur(
+                                          key: const ValueKey('etape-choix'),
+                                          enCours: enCours,
+                                          onGoogle: () {
+                                            _fournisseur = 'google';
+                                            ref.read(authProvider.notifier).loginWithGoogle();
+                                          },
+                                          // Sur iPhone seulement (règle 4.8 de l'App Store).
+                                          onApple: AppleAuthService.disponible
+                                              ? () {
+                                                  _fournisseur = 'apple';
+                                                  ref.read(authProvider.notifier).loginWithApple();
+                                                }
+                                              : null,
+                                          onEmail: _ouvrirSaisieEmail,
+                                        ),
+                                ),
+                                const SizedBox(height: 16),
+                                // Le consentement, sous les chemins, quel que
+                                // soit l'état de l'écran.
+                                _Consentement(
+                                  cgu: () => PagesLegales.ouvrir(
+                                    context,
+                                    PagesLegales.cgu(
+                                      estStore: ref.read(isStoreBuildProvider),
+                                      sansPari: ref.read(sansPariProvider)),
+                                    titre: PagesLegales.titreCgu),
+                                  confidentialite: () => PagesLegales.ouvrir(
+                                    context, PagesLegales.confidentialite,
+                                    titre: PagesLegales.titreConfidentialite),
+                                ),
+                              ]),
+                            ),
+                          ),
+                          const Spacer(),
+                          SafeArea(
+                            top: false,
+                            minimum: const EdgeInsets.only(bottom: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: TextButton(
+                                key: const Key('connexion-aide'),
+                                // Un objet déjà rempli : la demande se traite
+                                // sans échange préalable.
+                                onPressed: () => ContactSupport.ouvrirEmail(
+                                  sujet: tr(context, "Problème de connexion")),
+                                style: TextButton.styleFrom(foregroundColor: context.cl.textS),
+                                child: Text(tr(context, "Besoin d'aide ?"),
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                          ),
+                        ]),
+                      ),
                     ),
-                  ),
+                  )),
                 ),
               ]),
             ),
           ),
-        )),
+        ),
       ),
     );
   }
 }
 
-/// Le bandeau de la marque : le nom, la fermeture, une accroche et une petite
-/// scène. Le fond de page le borde d'une colline, sur laquelle la scène pose.
-class _Bandeau extends StatelessWidget {
-  final double hauteur;
-  /// Clavier ouvert : le nom et la croix seulement.
-  final bool compact;
+/// La feuille : blanche en thème clair, comme le modèle ; le fond de page en
+/// thème sombre, qui se détache du noir qui l'entoure.
+Color _couleurFeuille(BuildContext context) =>
+    context.isDark ? context.cl.bg : context.cl.surface;
+
+/// Le haut de la feuille : retour et fermeture en boutons ronds, le titre
+/// entre les deux.
+class _EnTete extends StatelessWidget {
+  final VoidCallback onRetour;
   final VoidCallback onFermer;
-  const _Bandeau({required this.hauteur, required this.compact, required this.onFermer});
+  const _EnTete({required this.onRetour, required this.onFermer});
 
   @override
-  Widget build(BuildContext context) => AnimatedContainer(
-    duration: const Duration(milliseconds: 220),
-    curve: Curves.easeOut,
-    // Toute la largeur : sans elle, le bandeau replié (clavier ouvert) se
-    // réduisait à la largeur du nom.
-    width: double.infinity,
-    height: hauteur,
-    child: Stack(children: [
-      Positioned.fill(
-        child: ClipPath(
-          clipper: const _Colline(),
-          child: const DecoratedBox(
-            decoration: BoxDecoration(gradient: LinearGradient(
-              colors: _bandeau, begin: Alignment.topLeft, end: Alignment.bottomRight)),
-          ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+    child: Row(children: [
+      _BoutonRond(icone: Icons.chevron_left_rounded, infobulle: tr(context, "Retour"), onTap: onRetour),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Semantics(
+          header: true,
+          child: Text(tr(context, "Connexion ou inscription"),
+            key: const Key('connexion-titre'),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            style: TextStyle(color: context.cl.textP, fontSize: 20,
+              fontWeight: FontWeight.w700, height: 1.2)),
         ),
       ),
-      SafeArea(
-        bottom: false,
-        child: Column(children: [
-          SizedBox(
-            height: 52,
-            width: double.infinity,
-            child: Stack(alignment: Alignment.center, children: [
-              const ExcludeSemantics(child: LogotypePronoWin(taille: 26, toutBlanc: true)),
-              Positioned(
-                right: 4,
-                child: IconButton(
-                  tooltip: tr(context, "Fermer"),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
-                  onPressed: onFermer,
-                ),
-              ),
-            ]),
-          ),
-          if (!compact) ...[
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(children: [
-                Text(tr(context, "Le foot au quotidien, avec"),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 4),
-                Text(tr(context, "pronostics, scores en direct & alertes"),
-                  key: const Key('connexion-accroche'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 26,
-                    fontWeight: FontWeight.w800, height: 1.15, letterSpacing: -0.4)),
-              ]),
-            ).animate().fadeIn(duration: 400.ms),
-            const Expanded(child: _Scene()),
-          ],
-        ]),
-      ),
+      const SizedBox(width: 8),
+      _BoutonRond(icone: Icons.close_rounded, infobulle: tr(context, "Fermer"), onTap: onFermer),
     ]),
   );
 }
 
-/// Le bas du bandeau : le fond de page monte en colline au milieu.
-class _Colline extends CustomClipper<Path> {
-  const _Colline();
-
-  @override
-  Path getClip(Size s) {
-    final bosse = (s.height * 0.16).clamp(28.0, 64.0);
-    return Path()
-      ..lineTo(s.width, 0)
-      ..lineTo(s.width, s.height)
-      ..quadraticBezierTo(s.width / 2, s.height - 2 * bosse, 0, s.height)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _Colline oldClipper) => false;
-}
-
-/// La petite scène du bandeau : l'icône de l'app, et autour ce que l'app
-/// fait — un score, le direct, une alerte, un classement. Composée de
-/// widgets, sans image : elle suit le thème et ne pèse rien. Rien n'y bouge
-/// après l'entrée.
-class _Scene extends StatelessWidget {
-  const _Scene();
-
-  @override
-  Widget build(BuildContext context) => ExcludeSemantics(
-    child: Center(
-      child: SizedBox(
-        width: 300, height: 150,
-        child: Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
-          // L'icône, au centre, cerclée de blanc pour se détacher de l'orange.
-          Container(
-            width: 96, height: 96,
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.22),
-                blurRadius: 22, offset: const Offset(0, 10))],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(23),
-              child: Image.asset('assets/images/app_icon.png', fit: BoxFit.cover),
-            ),
-          ).animate().fadeIn(duration: 400.ms, delay: 80.ms)
-           .scale(begin: const Offset(0.85, 0.85), duration: 450.ms, curve: Curves.easeOutBack),
-
-          // En direct, en haut à gauche.
-          Positioned(left: 14, top: 8, child: _Pastille(
-            couleur: Colors.black.withValues(alpha: 0.28),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Container(width: 7, height: 7,
-                decoration: const BoxDecoration(color: Color(0xFFFF3B30), shape: BoxShape.circle)),
-              const SizedBox(width: 6),
-              Text(tr(context, "EN DIRECT"),
-                style: const TextStyle(color: Colors.white, fontSize: 11,
-                  fontWeight: FontWeight.w800, letterSpacing: 0.6)),
-            ]),
-          )).animate().fadeIn(duration: 350.ms, delay: 200.ms).moveY(begin: 8, end: 0),
-
-          // Un score, en bas à gauche.
-          Positioned(left: 0, bottom: 14, child: _Pastille(
-            child: Row(mainAxisSize: MainAxisSize.min, children: const [
-              Icon(Icons.sports_soccer_rounded, size: 16, color: Color(0xFF1F2430)),
-              SizedBox(width: 6),
-              Text('2 - 1', style: TextStyle(color: Color(0xFF1F2430), fontSize: 14,
-                fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()])),
-            ]),
-          )).animate().fadeIn(duration: 350.ms, delay: 260.ms).moveY(begin: 8, end: 0),
-
-          // Une alerte, en haut à droite.
-          Positioned(right: 18, top: 4, child: _Bulle(
-            icone: Icons.notifications_active_rounded, pastille: true,
-          )).animate().fadeIn(duration: 350.ms, delay: 320.ms).moveY(begin: 8, end: 0),
-
-          // Le classement, en bas à droite.
-          Positioned(right: 2, bottom: 18, child: _Bulle(
-            icone: Icons.leaderboard_rounded,
-          )).animate().fadeIn(duration: 350.ms, delay: 380.ms).moveY(begin: 8, end: 0),
-        ]),
-      ),
-    ),
-  );
-}
-
-/// Une pastille arrondie de la scène : blanche par défaut.
-class _Pastille extends StatelessWidget {
-  final Widget child;
-  final Color couleur;
-  const _Pastille({required this.child, this.couleur = Colors.white});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-    decoration: BoxDecoration(
-      color: couleur,
-      borderRadius: BorderRadius.circular(20),
-      boxShadow: couleur == Colors.white
-          ? [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 14, offset: const Offset(0, 6))]
-          : null,
-    ),
-    child: child,
-  );
-}
-
-/// Une bulle ronde blanche et son icône orange, avec au besoin le point rouge
-/// d'une notification.
-class _Bulle extends StatelessWidget {
+class _BoutonRond extends StatelessWidget {
   final IconData icone;
-  final bool pastille;
-  const _Bulle({required this.icone, this.pastille = false});
+  final String infobulle;
+  final VoidCallback onTap;
+  const _BoutonRond({required this.icone, required this.infobulle, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => Stack(clipBehavior: Clip.none, children: [
-    Container(
-      width: 44, height: 44,
-      decoration: BoxDecoration(
-        color: Colors.white, shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 14, offset: const Offset(0, 6))],
+  Widget build(BuildContext context) => Tooltip(
+    message: infobulle,
+    child: Material(
+      color: _couleurFeuille(context),
+      shape: CircleBorder(side: BorderSide(color: context.cl.border, width: 1)),
+      elevation: context.isDark ? 0 : 1.5,
+      shadowColor: Colors.black.withValues(alpha: 0.25),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 46, height: 46,
+          child: Icon(icone, size: 26, color: context.cl.textP),
+        ),
       ),
-      child: Icon(icone, size: 22, color: const Color(0xFFD2470E)),
     ),
-    if (pastille) Positioned(right: 2, top: 2, child: Container(
-      width: 11, height: 11,
-      decoration: BoxDecoration(color: const Color(0xFFFF3B30), shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2)),
-    )),
-  ]);
+  );
+}
+
+/// Ce qu'apporte un compte, en trois avantages qui existent vraiment :
+/// suivre ses équipes, recevoir les alertes de ses matchs suivis, retrouver
+/// ses favoris sur un autre téléphone (ils sont gardés sur le serveur, liés
+/// au compte).
+class _Avantages extends StatelessWidget {
+  const _Avantages();
+
+  @override
+  Widget build(BuildContext context) {
+    final avantages = [
+      (Icons.star_border_rounded, tr(context, "Suis tes équipes favorites")),
+      (Icons.notifications_none_rounded, tr(context, "Alertes de tes matchs suivis")),
+      (Icons.devices_outlined, tr(context, "Tes favoris sur tous tes appareils")),
+    ];
+    return Container(
+      key: const Key('connexion-avantages'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
+      decoration: BoxDecoration(
+        color: context.isDark
+            ? context.cl.surface
+            : context.cl.info.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(children: [
+        Text(tr(context, "Profite pleinement de PronoWin"),
+          key: const Key('connexion-accroche'),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textP, fontSize: 21,
+            fontWeight: FontWeight.w800, height: 1.2, letterSpacing: -0.2)),
+        const SizedBox(height: 8),
+        Text(tr(context, "Gratuit et sans mot de passe. Inscris-toi en quelques secondes !"),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textS, fontSize: 15, height: 1.4)),
+        const SizedBox(height: 20),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final (icone, texte) in avantages)
+            Expanded(child: Column(children: [
+              Icon(icone, size: 32, color: context.cl.textP),
+              const SizedBox(height: 8),
+              Text(texte,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.cl.textP, fontSize: 14, height: 1.3)),
+            ])),
+        ]),
+      ]),
+    ).animate().fadeIn(duration: 350.ms);
+  }
 }
 
 /// Un halo de l'orange de la marque derrière l'en-tête de l'écran du code :
@@ -463,16 +385,17 @@ class HaloMarque extends StatelessWidget {
 }
 
 // ─── CHOIX DU CHEMIN ──────────────────────────────────────────────────────────
-/// Les fournisseurs, tous du même poids visuel.
+/// Les avantages d'un compte, puis les fournisseurs, tous de la même forme.
 ///
 /// L'ordre n'est pas arbitraire : Google d'abord, parce que c'est le compte
 /// que possède la quasi-totalité des utilisateurs Android — le marché visé —
 /// et le seul chemin qui ne coûte ni SMS ni e-mail. L'adresse e-mail en
-/// dernier, après « ou » : elle reste le repli, plus le chemin principal.
+/// dernier : elle reste le repli, plus le chemin principal.
 ///
 /// « Continuer avec Apple » s'insère entre les deux sur iPhone : la règle 4.8
 /// de l'App Store l'exige de toute app proposant une connexion tierce comme
-/// Google, avec le même poids visuel.
+/// Google. Il est plein, noir (blanc en thème sombre), comme le veulent les
+/// règles de présentation d'Apple.
 class _ChoixFournisseur extends StatelessWidget {
   final bool enCours;
   final VoidCallback onGoogle;
@@ -490,12 +413,15 @@ class _ChoixFournisseur extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(children: [
+    const _Avantages(),
+    const SizedBox(height: 28),
+
     BoutonFournisseur(
       libelle: tr(context, "Continuer avec Google"),
       logo: const LogoGoogle(),
       desactive: enCours,
       onPressed: onGoogle,
-    ).animate().fadeIn(duration: 400.ms, delay: 140.ms)
+    ).animate().fadeIn(duration: 400.ms, delay: 120.ms)
      .slideY(begin: 0.06, end: 0, duration: 400.ms),
 
     if (onApple != null) ...[
@@ -503,52 +429,23 @@ class _ChoixFournisseur extends StatelessWidget {
       BoutonFournisseur(
         libelle: tr(context, "Continuer avec Apple"),
         logo: const LogoApple(),
+        plein: true,
         desactive: enCours,
         onPressed: onApple!,
-      ).animate().fadeIn(duration: 400.ms, delay: 165.ms)
+      ).animate().fadeIn(duration: 400.ms, delay: 145.ms)
        .slideY(begin: 0.06, end: 0, duration: 400.ms),
     ],
 
-    const _SeparateurOu(),
+    const SizedBox(height: 14),
 
     BoutonFournisseur(
       libelle: tr(context, "Continuer avec un e-mail"),
       logo: const LogoEmail(),
       desactive: enCours,
       onPressed: onEmail,
-    ).animate().fadeIn(duration: 400.ms, delay: 190.ms)
+    ).animate().fadeIn(duration: 400.ms, delay: 170.ms)
      .slideY(begin: 0.06, end: 0, duration: 400.ms),
-
-    const SizedBox(height: 16),
-
-    // Ce qui arrête le plus souvent à l'inscription : un mot de passe de
-    // plus à inventer. Il n'y en a pas.
-    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.lock_outline_rounded, size: 15, color: context.cl.textS),
-      const SizedBox(width: 6),
-      Flexible(child: Text(tr(context, "Sans mot de passe, en quelques secondes"),
-        style: TextStyle(color: context.cl.textS, fontSize: 13))),
-    ]).animate().fadeIn(duration: 400.ms, delay: 230.ms),
   ]);
-}
-
-/// « ou » entre les comptes (Google, Apple) et l'adresse e-mail.
-class _SeparateurOu extends StatelessWidget {
-  const _SeparateurOu();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 16),
-    child: Row(children: [
-      Expanded(child: Divider(color: context.cl.border, height: 1)),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: Text(tr(context, "ou"),
-          style: TextStyle(color: context.cl.textS, fontSize: 14, fontWeight: FontWeight.w500)),
-      ),
-      Expanded(child: Divider(color: context.cl.border, height: 1)),
-    ]),
-  );
 }
 
 // ─── SAISIE DE L'ADRESSE ──────────────────────────────────────────────────────
@@ -660,7 +557,7 @@ class _ConsentementState extends State<_Consentement> {
   @override
   Widget build(BuildContext context) {
     final lien = TextStyle(
-      color: context.cl.accent, decoration: TextDecoration.underline, fontWeight: FontWeight.w600);
+      color: context.cl.textS, decoration: TextDecoration.underline, fontWeight: FontWeight.w600);
     return Text.rich(
       key: const Key('connexion-consentement'),
       textAlign: TextAlign.center,

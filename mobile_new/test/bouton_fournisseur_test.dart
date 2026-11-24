@@ -34,30 +34,26 @@ void main() {
           reason: 'des hauteurs différentes hiérarchisent les chemins');
     });
 
-    testWidgets('tous de la même forme, sans fond de couleur — aucun ne passe devant',
+    testWidgets('tous de la même forme ; aucun ne prend la couleur de la marque',
         (tester) async {
-      // Une couleur ou une forme propre à l'un d'eux rétablirait la hiérarchie
-      // qu'on retire (20 novembre 2026 : des pilules au contour franc, pour
-      // tous).
+      // Une forme propre à l'un d'eux rétablirait la hiérarchie qu'on retire.
+      // Seul Apple peut être plein, en noir ou blanc, comme le veulent ses
+      // règles de présentation (24 novembre 2026).
       await tester.pumpWidget(_hote(Column(children: const [
         BoutonFournisseur(libelle: 'Continuer avec Google', logo: LogoGoogle()),
-        BoutonFournisseur(libelle: 'Continuer avec Apple', logo: LogoApple()),
+        BoutonFournisseur(libelle: 'Continuer avec Apple', logo: LogoApple(), plein: true),
         BoutonFournisseur(libelle: 'Continuer avec un e-mail', logo: LogoEmail()),
       ])));
 
-      final fonds = tester
-          .widgetList<Material>(find.descendant(
-              of: find.byType(BoutonFournisseur), matching: find.byType(Material)))
-          .map((m) => m.color)
+      final materiaux = tester.widgetList<Material>(find.descendant(
+          of: find.byType(BoutonFournisseur), matching: find.byType(Material))).toList();
+      final fonds = materiaux.map((m) => m.color).toList();
+      expect(fonds[0], fonds[2], reason: 'Google et l\'e-mail partagent le même fond');
+      expect(fonds, isNot(contains(AppColors.primary)));
+      final coins = materiaux
+          .map((m) => (m.shape as RoundedRectangleBorder).borderRadius)
           .toSet();
-      expect(fonds, hasLength(1), reason: 'un seul fond pour tous les chemins');
-      expect(fonds.single, isNot(AppColors.primary));
-      final formes = tester
-          .widgetList<Material>(find.descendant(
-              of: find.byType(BoutonFournisseur), matching: find.byType(Material)))
-          .map((m) => m.shape)
-          .toSet();
-      expect(formes, hasLength(1), reason: 'une seule forme pour tous les chemins');
+      expect(coins, hasLength(1), reason: 'une seule forme pour tous les chemins');
       final degrades = tester
           .widgetList<Container>(find.descendant(
               of: find.byType(BoutonFournisseur), matching: find.byType(Container)))
@@ -78,7 +74,7 @@ void main() {
         onPressed: () => touches++,
       )));
 
-      await tester.tap(find.text('Continuer avec Google'));
+      await tester.tap(find.text('CONTINUER AVEC GOOGLE'));
       await tester.pump();
       // Deux authentifications simultanées ouvriraient deux sessions
       // concurrentes ; le second appui doit rester sans effet.
@@ -93,7 +89,7 @@ void main() {
         onPressed: () => touches++,
       )));
 
-      await tester.tap(find.text('Continuer avec Google'));
+      await tester.tap(find.text('CONTINUER AVEC GOOGLE'));
       await tester.pump();
       expect(touches, 1);
     });
@@ -102,7 +98,9 @@ void main() {
         (tester) async {
       await tester.pumpWidget(_hote(const BoutonFournisseur(
         libelle: 'Continuer avec Apple')));
-      expect(find.text('Continuer avec Apple'), findsOneWidget);
+      expect(find.text('CONTINUER AVEC APPLE'), findsOneWidget);
+      // Lu tel qu'il s'écrit, pas en capitales.
+      expect(find.bySemanticsLabel('Continuer avec Apple'), findsOneWidget);
     });
   });
 

@@ -2056,4 +2056,10 @@ const englishMessages = <String, String>{
   " {arg0} autres pronostics sur ce match.": " {arg0} other predictions on this match.",
   "+{arg0} prono": "+{arg0} prediction",
   "+{arg0} pronos": "+{arg0} predictions",
+  "Connexion ou inscription": "Log in or sign up",
+  "Profite pleinement de PronoWin": "Get the most out of PronoWin",
+  "Gratuit et sans mot de passe. Inscris-toi en quelques secondes !": "Free, no password needed. Sign up in seconds!",
+  "Suis tes équipes favorites": "Follow your favourite teams",
+  "Alertes de tes matchs suivis": "Alerts for the matches you follow",
+  "Tes favoris sur tous tes appareils": "Your favourites on all your devices",
 };

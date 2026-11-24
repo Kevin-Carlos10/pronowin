@@ -11,21 +11,22 @@ import '../../../../core/theme/app_theme.dart';
 /// d'aller le chercher dans sa boîte, de le ressaisir — et le seul qui coûte un
 /// envoi à PronoWin.
 ///
-/// Tous les fournisseurs partagent désormais la même forme. C'est le modèle des
-/// grandes apps sport (Sofascore, OneFootball) : on propose, on n'oriente pas.
+/// Tous les fournisseurs partagent la même forme et la même hauteur. C'est le
+/// modèle des grandes apps sport (Sofascore, OneFootball) : on propose, on
+/// n'oriente pas.
 ///
-/// En pilules depuis le 20 novembre 2026 (écran de connexion d'Alibaba,
-/// montré par l'utilisateur) : un contour franc de la couleur du texte, des
-/// bouts arrondis, un libellé plus grand. La même forme pour tous — aucun ne
-/// passe devant les autres.
-///
-/// Ajouter « Continuer avec Apple » — obligatoire dès la sortie iOS, règle 4.8
-/// de l'App Store — ne demandera qu'une entrée de plus dans la pile.
+/// Depuis le 24 novembre 2026 (écran « Connexion ou inscription » montré par
+/// l'utilisateur) : des rectangles arrondis au contour léger, le libellé en
+/// capitales espacées, la marque à gauche. Seul Apple peut être plein
+/// ([plein]) : ses règles de présentation proposent un bouton noir (ou blanc
+/// sur fond sombre), jamais la couleur de l'app — aucun chemin ne prend
+/// l'orange de la marque.
 class BoutonFournisseur extends StatelessWidget {
   final String libelle;
 
   /// Marque du fournisseur, à sa gauche. `null` pour un chemin sans marque
-  /// (l'e-mail), qui reçoit alors une icône neutre.
+  /// (l'e-mail), qui reçoit alors une icône neutre. Les icônes prennent la
+  /// couleur du libellé.
   final Widget? logo;
 
   final VoidCallback? onPressed;
@@ -34,56 +35,80 @@ class BoutonFournisseur extends StatelessWidget {
   /// authentifications simultanées produiraient deux sessions concurrentes.
   final bool desactive;
 
+  /// Fond plein de la couleur du texte (noir en clair, blanc en sombre) :
+  /// « Continuer avec Apple », selon les règles d'Apple.
+  final bool plein;
+
   const BoutonFournisseur({
     super.key,
     required this.libelle,
     this.logo,
     this.onPressed,
     this.desactive = false,
+    this.plein = false,
   });
+
+  /// Rayon des coins, le même pour tous.
+  static const rayon = 10.0;
 
   @override
   Widget build(BuildContext context) {
     final actif = !desactive && onPressed != null;
+    final encre = plein ? context.cl.bg : context.cl.textP.withValues(alpha: 0.82);
 
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: Opacity(
-        opacity: actif ? 1 : 0.45,
-        child: Material(
-          color: Colors.transparent,
-          clipBehavior: Clip.antiAlias,
-          shape: StadiumBorder(
-            side: BorderSide(color: context.cl.textP.withValues(alpha: 0.85), width: 1.5),
-          ),
-          child: InkWell(
-            onTap: actif ? onPressed : null,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(children: [
-                SizedBox(width: 24, height: 24, child: Center(child: logo)),
-                // Le libellé reste centré sur toute la largeur du bouton, la
-                // marque flottant à gauche — c'est ce qui aligne visuellement
-                // les intitulés d'une pile où les logos n'ont pas la même
-                // largeur.
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 24),
-                    child: Text(
-                      libelle,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.cl.textP,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+    // Le libellé s'affiche en capitales ; le lecteur d'écran le lit tel
+    // qu'il s'écrit, sans l'épeler.
+    return Semantics(
+      button: true,
+      enabled: actif,
+      label: libelle,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: Opacity(
+          opacity: actif ? 1 : 0.45,
+          child: Material(
+            color: plein ? context.cl.textP : Colors.transparent,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(rayon),
+              side: plein
+                  ? BorderSide.none
+                  : BorderSide(color: context.cl.border, width: 1),
+            ),
+            child: InkWell(
+              onTap: actif ? onPressed : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: IconTheme(
+                  data: IconThemeData(color: plein ? context.cl.bg : context.cl.textP),
+                  child: Row(children: [
+                    SizedBox(width: 28, height: 28, child: Center(child: logo)),
+                    // Le libellé reste centré sur toute la largeur du bouton,
+                    // la marque flottant à gauche — c'est ce qui aligne
+                    // visuellement les intitulés d'une pile où les logos n'ont
+                    // pas la même largeur.
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 28),
+                        child: Text(
+                          libelle.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: encre,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ]),
                 ),
-              ]),
+              ),
             ),
           ),
         ),
@@ -111,25 +136,24 @@ class LogoGoogle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      SvgPicture.string(_svg, width: 22, height: 22);
+      SvgPicture.string(_svg, width: 24, height: 24);
 }
 
 /// Le logo Apple, pour « Continuer avec Apple ». Les règles d'Apple veulent
-/// le logo seul, monochrome, de la couleur du texte du bouton.
+/// le logo seul, monochrome, de la couleur du texte du bouton : il prend
+/// celle que le bouton lui donne.
 class LogoApple extends StatelessWidget {
   const LogoApple({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      Icon(Icons.apple, size: 24, color: context.cl.textP);
+  Widget build(BuildContext context) => const Icon(Icons.apple, size: 26);
 }
 
 /// Icône du chemin par e-mail : neutre, elle ne prétend à aucune marque.
-/// Une enveloppe au trait, de la couleur du texte, comme les autres logos.
+/// Une enveloppe au trait, de la couleur du libellé, comme les autres logos.
 class LogoEmail extends StatelessWidget {
   const LogoEmail({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      Icon(Icons.mail_outline_rounded, size: 24, color: context.cl.textP);
+  Widget build(BuildContext context) => const Icon(Icons.mail_outline_rounded, size: 26);
 }
