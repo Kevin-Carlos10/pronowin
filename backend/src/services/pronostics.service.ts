@@ -1269,6 +1269,11 @@ export class PronosticsService {
     const pronostics = await prisma.pronostic.findMany({
       where: {
         isPublished: true,
+        // Une carte par match (plusieurs pronostics par match, 23 novembre
+        // 2026) : le principal, qui est publié dès qu'un pronostic du match
+        // l'est (`majPronosticPublie`) ; les autres sont annoncés par
+        // `autres_pronostics` et montrés dans la fiche.
+        principalMatchId: { not: null },
         match: {
           ...dateWhere,
           ...(params.leagueCode ? { leagueCode: params.leagueCode } : {}),
@@ -1276,7 +1281,7 @@ export class PronosticsService {
         },
       },
       include: {
-        match:   true,
+        match:   { include: { _count: { select: { pronostics: { where: { isPublished: true } } } } } },
         analyst: { select: { name: true } },
       },
       // LIVE d'abord — Pronostic→ Match est une relation obligatoire (pas de
@@ -1338,6 +1343,8 @@ export class PronosticsService {
       result:           p.result,
       home_form_points: p.match.homeFormPoints,
       away_form_points: p.match.awayFormPoints,
+      // Les autres pronostics publiés du match, en plus de celui-ci.
+      autres_pronostics: Math.max(0, (p.match._count?.pronostics ?? 1) - 1),
       };
     });
     return { data, nextCursor, hasMore: nextCursor !== null };

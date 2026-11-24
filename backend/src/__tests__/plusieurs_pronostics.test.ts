@@ -102,6 +102,22 @@ describe('retirer un pronostic', () => {
   });
 });
 
+describe('la liste des pronostics publiés : une carte par match', () => {
+  it('le principal seul, et le nombre des autres', async () => {
+    jest.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
+    const lecture = jest.spyOn(prisma.pronostic, 'findMany').mockResolvedValue([{
+      id: 'p1', matchId: 'm1', isPremium: false, predictionType: 'over_2_5', predictionLabel: 'Plus de 2,5 buts',
+      oddsHome: 0, oddsDraw: 0, oddsAway: 0, oddsRecommended: 1.8, confidenceScore: 3, result: null,
+      analyst: { name: 'A' },
+      match: { league: 'L', leagueCode: 'PL', homeTeam: 'A', awayTeam: 'B', matchDate: demain, status: 'SCHEDULED',
+        _count: { pronostics: 3 } },
+    }] as any);
+    const r = await svc.getPublishedPronostics({ limit: 20 });
+    expect((lecture.mock.calls[0][0] as any).where.principalMatchId).toEqual({ not: null });
+    expect(r.data[0].autres_pronostics).toBe(2);
+  });
+});
+
 describe('le principal est un pronostic publié', () => {
   let maj: jest.SpyInstance;
   // p1 principal, p2 l'autre pronostic du match.
