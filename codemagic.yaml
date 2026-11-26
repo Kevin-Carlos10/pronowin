@@ -200,6 +200,11 @@ workflows:
         GOOGLE_SERVER_CLIENT_ID: "207728984029-h51a5iepgrltfgohah8j6c3dfq8ris15.apps.googleusercontent.com"
         API_BASE_URL: "https://pronowin.space/api/v1"
         STORE_BUILD: "true"
+        # Le volet pari (cotes, bankroll, alerte de couverture) sur iPhone
+        # (26 novembre 2026, l'app n'est pas soumise à Apple pour le moment).
+        # AVANT TOUTE SOUMISSION À APPLE : mettre "true" — sans cela, refus
+        # pour jeu d'argent (compte individuel). Voir lib/core/config/sans_pari.dart.
+        SANS_PARI_IOS: "false"
         # « Identifiant Apple » de l'app dans App Store Connect (public, non secret).
         APP_STORE_APPLE_ID: "6817503596"
       # Codemagic récupère (ou crée) le certificat de distribution et le
@@ -223,6 +228,7 @@ workflows:
           # plutôt que découvert après la compilation.
           echo "  API_BASE_URL=$API_BASE_URL"
           echo "  STORE_BUILD=$STORE_BUILD"
+          echo "  SANS_PARI_IOS=$SANS_PARI_IOS (false : cotes et bankroll sur iPhone ; true avant de soumettre à Apple)"
           [ "$API_BASE_URL" = "https://pronowin.space/api/v1" ] \
             || { echo "API_BASE_URL absent ou inattendu : le paquet viserait l'émulateur."; exit 1; }
           # Sans STORE_BUILD=true, l'app proposerait Mobile Money et les
@@ -266,6 +272,7 @@ workflows:
             --export-options-plist=/Users/builder/export_options.plist \
             --dart-define=API_BASE_URL="$API_BASE_URL" \
             --dart-define=STORE_BUILD="$STORE_BUILD" \
+            --dart-define=SANS_PARI_IOS="${SANS_PARI_IOS:-true}" \
             --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
 
       - name: Vérifier le paquet avant l'envoi

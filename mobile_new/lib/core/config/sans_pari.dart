@@ -17,7 +17,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Un seul interrupteur, lu partout, plutôt qu'un test de plateforme répété
 /// dans chaque écran : les bancs d'essai le forcent pour vérifier, sur
 /// Windows, ce que verra un iPhone.
-final sansPariProvider = Provider<bool>((ref) => Platform.isIOS);
+///
+/// ── Remis sur iPhone, par la compilation (26 novembre 2026) ───────────────
+///
+/// L'utilisateur ne soumet pas à Apple pour le moment, et veut le volet pari
+/// sur iPhone aussi (cotes, bankroll, alerte de couverture). Il revient par
+/// un interrupteur de compilation, pas par le serveur : une fonction masquée
+/// à distance pendant l'examen d'Apple serait une fonction cachée (règle
+/// 2.3.1). Par défaut, l'iPhone reste sans pari ; le build Codemagic passe
+/// `--dart-define=SANS_PARI_IOS=false`. Avant toute soumission à Apple :
+/// retirer cette valeur de codemagic.yaml (variable SANS_PARI_IOS).
+const sansPariIos = bool.fromEnvironment('SANS_PARI_IOS', defaultValue: true);
+
+final sansPariProvider = Provider<bool>((ref) => Platform.isIOS && sansPariIos);
 
 /// [sansPariProvider] lu depuis un widget qui n'a pas de `ref`. La valeur ne
 /// change pas pendant la vie de l'application : rien à écouter.
