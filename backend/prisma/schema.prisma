@@ -144,6 +144,14 @@ model BankrollBet {
   /// Le parieur a confirmé — ou corrigé — la mise réellement placée chez son
   /// bookmaker, au résultat (constat M1). Nul : pas encore demandé.
   miseConfirmeeLe DateTime?    @map("mise_confirmee_le")
+  /// La cote obtenue chez le bookmaker, si l'abonné l'a précisée (26 novembre
+  /// 2026). Sert seulement au calcul de couverture : la bankroll reste réglée
+  /// sur `oddsUsed`, la cote publiée.
+  coteBookmaker   Float?       @map("cote_bookmaker")
+  /// L'alerte de couverture est partie (une seule par mise), et ce qu'elle
+  /// disait : sélection inverse, sa cote, la mise conseillée, le gain garanti.
+  couvertureNotifieeLe DateTime? @map("couverture_notifiee_le")
+  couverture      Json?
   createdAt       DateTime     @default(now()) @map("created_at")
   bankroll        UserBankroll @relation(fields: [bankrollId], references: [id], onDelete: Cascade)
   pronostic       Pronostic    @relation(fields: [pronosticId], references: [id], onDelete: Cascade)

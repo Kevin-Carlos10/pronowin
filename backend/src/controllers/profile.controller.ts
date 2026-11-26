@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import logger, { journal } from '../utils/logger';
 import { NOTIF_CATEGORIES } from '../services/notification.service';
+import { SEUILS_COUVERTURE } from '../services/couverture';
 import { estMajeur, AGE_MINIMUM } from '../utils/age';
 import { repondreErreur } from '../utils/erreurs';
 import { revoquer } from '../services/apple_auth';
@@ -18,10 +19,16 @@ import { revoquer } from '../services/apple_auth';
 export const updateNotificationPrefs = async (req: AuthRequest, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
-    const prefs: Record<string, boolean> = {};
+    const prefs: Record<string, boolean | number> = {};
     for (const key of NOTIF_CATEGORIES) {
       const v = body[key];
       if (typeof v === 'boolean') prefs[key] = v;
+    }
+    // Le seuil de l'alerte de couverture, en % du gain potentiel (26 novembre
+    // 2026) : 30, 50 ou 70 — rien d'autre.
+    const seuil = body.seuil_couverture;
+    if (typeof seuil === 'number' && (SEUILS_COUVERTURE as readonly number[]).includes(seuil)) {
+      prefs.seuil_couverture = seuil;
     }
     if (Object.keys(prefs).length === 0) {
       res.status(400).json({
@@ -35,7 +42,7 @@ export const updateNotificationPrefs = async (req: AuthRequest, res: Response) =
       where: { id: req.userId! }, select: { notificationPrefs: true },
     });
     const merged = {
-      ...(current?.notificationPrefs as Record<string, boolean> | null ?? {}),
+      ...(current?.notificationPrefs as Record<string, boolean | number> | null ?? {}),
       ...prefs,
     };
 

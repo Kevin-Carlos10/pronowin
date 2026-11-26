@@ -74,7 +74,9 @@ class AppNotification {
   /// crie en débogage, et `notifications_classement_test.dart` compare cette
   /// liste à ce que le serveur produit réellement.
   static NotificationType typeFromString(String s) => switch (s) {
-    'match' || 'match_live' || 'match_finished' || 'prono_result'
+    // `couverture` (26 novembre 2026) : la couverture d'une sélection, sur
+    // un match.
+    'match' || 'match_live' || 'match_finished' || 'prono_result' || 'couverture'
                             => NotificationType.match,
     'promo'                 => NotificationType.promo,
     'payment' || 'referral' => NotificationType.referral,

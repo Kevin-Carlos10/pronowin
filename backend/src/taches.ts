@@ -12,6 +12,7 @@ import { envoyerBilanHebdo } from './services/bilan_hebdo.service';
 import { publierResumes } from './services/resumes_match.service';
 import { publierAvantMatchs } from './services/avant_matchs.service';
 import { annoncerCompositions } from './services/alertes_compositions.service';
+import { surveillerCouvertures } from './services/couverture.service';
 
 /**
  * Les tâches planifiées, hors du serveur HTTP (constat P1 de l'audit du
@@ -104,6 +105,15 @@ export function demarrerTaches(): () => void {
     };
     programmer(setTimeout(runCompositions, 4 * 60_000));
     programmer(setInterval(runCompositions, 5 * 60_000));
+
+    // Alerte de couverture (couverture.service.ts) : au rythme des cotes en
+    // direct, lues une fois pour tous les matchs toutes les deux minutes.
+    const runCouvertures = () => {
+      suivre('alertes_couverture', () => surveillerCouvertures(), ({ alertes }) => `${alertes} alerte(s)`)
+        .catch((err: Error) => logger.error('[Couverture] Erreur', { message: err.message }));
+    };
+    programmer(setTimeout(runCouvertures, 3 * 60_000));
+    programmer(setInterval(runCouvertures, 2 * 60_000));
   } else {
     // Le message nommait FOOTBALL_DATA_API_KEY, alors que la variable lue est
     // API_FOOTBALL_KEY : il envoyait chercher la mauvaise (constat I7).

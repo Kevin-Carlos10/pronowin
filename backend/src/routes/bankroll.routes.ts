@@ -14,6 +14,8 @@ r.post  ('/bet',       authMiddleware, valider({ body: pariBankroll }), C.placeB
 r.post  ('/bet/:id/confirmer', authMiddleware, valider({ body: confirmationMise }), C.confirmerMise);
 r.get   ('/stats',     authMiddleware, C.getStats);
 r.get   ('/suggest',   authMiddleware, C.getSuggestedStake);
+// La couverture de sa mise sur ce pronostic, maintenant (26 novembre 2026).
+r.get   ('/couverture/:pronosticId', authMiddleware, C.getCouverture);
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 r.get   ('/admin/list',      adminMiddleware, C.adminListBankrolls);

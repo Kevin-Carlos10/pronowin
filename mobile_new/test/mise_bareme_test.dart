@@ -27,7 +27,10 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('57 %'), findsOneWidget); // l'indice actualisé du serveur
       expect(find.text('3 % du solde'), findsOneWidget);
-      expect(find.byType(TextField), findsNothing); // aucun pourcentage personnel
+      // Aucun pourcentage personnel : le seul champ est la cote obtenue,
+      // facultative, pour l'alerte de couverture (26 novembre 2026).
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byKey(const Key('miser-cote-obtenue')), findsOneWidget);
       final button = tester.widget<GestureDetector>(find.ancestor(
         of: find.text('Valider'), matching: find.byType(GestureDetector)).first);
       expect(button.onTap == null, stake == 0);

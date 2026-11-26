@@ -15,6 +15,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../../shared/utils/montant.dart';
+import '../../../../shared/utils/devise.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../bankroll/domain/couverture.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/prono_share_service.dart';
@@ -91,6 +94,7 @@ part 'match_detail/mini_classement.dart';
 part 'match_detail/series.dart';
 part 'match_detail/evolution_classement.dart';
 part 'match_detail/autres_pronostics.dart';
+part 'match_detail/couverture.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
@@ -544,6 +548,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           // Les autres pronostics du match (23 novembre 2026). Porte sa
           // propre marge.
           entree(_AutresPronostics(match: match, abonne: isPremium), delaiMs: 30),
+          // L'alerte de couverture (26 novembre 2026) : pour chaque sélection
+          // enregistrée et encore ouverte sur ce match. Portent leur marge.
+          for (final id in [match.id, ...match.autresPronostics.map((a) => a.id)])
+            _CarteCouverture(pronosticId: id, match: match),
         ],
         // L'avant-match, puis le résumé. Porte sa propre marge : sans
         // article, elle ne laisse pas de trou.

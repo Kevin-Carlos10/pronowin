@@ -62,6 +62,10 @@ export const budgetBankroll = z.object({
 export const pariBankroll = z.object({
   pronostic_id:  identifiant('le pronostic'),
   staked_amount: nombre('la mise').refine((n) => n > 0, 'La mise doit être positive.'),
+  // La cote obtenue chez le bookmaker, facultative (26 novembre 2026) : elle
+  // ne sert qu'au calcul de couverture.
+  cote_obtenue: nombreFacultatif('la cote').refine(
+    (n) => n === undefined || (n > 1 && n <= 1000), 'Cote invalide : entre 1,01 et 1 000.'),
 });
 
 /** POST /bankroll/bet/:id/confirmer — sans montant : « oui, c'est bien elle ». */

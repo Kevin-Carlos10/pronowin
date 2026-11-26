@@ -72,6 +72,22 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
   double? _confirmedStake;
   String? _confirmedCurrency;
 
+  /// La cote obtenue chez le bookmaker, facultative (26 novembre 2026) : elle
+  /// ne sert qu'à l'alerte de couverture, la bankroll reste réglée sur la
+  /// cote publiée.
+  final _coteCtrl = TextEditingController();
+
+  double? get _coteSaisie {
+    final v = double.tryParse(_coteCtrl.text.trim().replaceAll(',', '.'));
+    return v != null && v > 1 && v <= 1000 ? v : null;
+  }
+
+  @override
+  void dispose() {
+    _coteCtrl.dispose();
+    super.dispose();
+  }
+
   /// Passe par le chemin unique d'ouverture.
   ///
   /// Cet ecran avait sa propre copie de `launchUrl` — celle-la meme que le
@@ -86,6 +102,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
       await ref.read(dioProvider).post('/bankroll/bet', data: {
         'pronostic_id':  widget.pronosticId,
         'staked_amount': stake,
+        if (_coteSaisie != null) 'cote_obtenue': _coteSaisie,
       });
       ref.invalidate(bankrollProvider);
       HapticFeedback.mediumImpact();
@@ -397,6 +414,21 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 value: '${montantExact(balance - stake)} $currency',
                 color: context.cl.textS)),
             ]),
+
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('miser-cote-obtenue'),
+              controller: _coteCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+              style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: tr(context, "Cote obtenue (facultatif)"),
+                hintText: widget.oddsRecommended.toStringAsFixed(2),
+                helperText: tr(context, "La cote à laquelle tu as réellement misé, pour l’alerte de couverture."),
+              ),
+            ),
 
             if (!canSubmit) ...[
               const SizedBox(height: 12),

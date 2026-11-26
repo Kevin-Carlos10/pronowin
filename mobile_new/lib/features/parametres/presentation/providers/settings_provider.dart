@@ -17,6 +17,12 @@ const _kNotifReferral = 'notif_referral';
 const _kNotifPremium  = 'notif_premium';
 const _kNotifEquipesSuivies = 'notif_equipes_suivies';
 const _kNotifLiguesSuivies  = 'notif_ligues_suivies';
+const _kNotifCouverture     = 'notif_couverture';
+const _kSeuilCouverture     = 'seuil_couverture';
+
+/// Les seuils de l'alerte de couverture, en % du gain potentiel garanti
+/// (26 novembre 2026) — les mêmes que le serveur accepte.
+const seuilsCouverture = [30, 50, 70];
 const _kPinEnabled    = 'security_pin_enabled';
 const _kBioEnabled    = 'security_bio_enabled';
 /// « Tout mettre en pause » (11 novembre 2026) : en pause, et les quatre
@@ -38,6 +44,9 @@ class AppSettings {
   /// Les alertes des matchs d'une équipe ou d'une ligue suivie
   /// (15 novembre 2026). Elles passent aussi par [notifMatch].
   final bool      notifEquipesSuivies, notifLiguesSuivies;
+  /// L'alerte de couverture, et son seuil (26 novembre 2026).
+  final bool      notifCouverture;
+  final int       seuilCouverture;
   final bool      pinEnabled, bioEnabled;
   /// Thème Nocturne : le sombre sur du noir pur (avec [themeMode] sombre).
   final bool      nocturne;
@@ -54,6 +63,8 @@ class AppSettings {
     this.notifPremium  = true,
     this.notifEquipesSuivies = true,
     this.notifLiguesSuivies  = true,
+    this.notifCouverture     = true,
+    this.seuilCouverture     = 50,
     this.pinEnabled    = false,
     this.bioEnabled    = false,
     this.nocturne      = false,
@@ -64,6 +75,7 @@ class AppSettings {
     ThemeMode? themeMode, String? lang,
     bool? notifMatch, bool? notifPromo, bool? notifReferral,
     bool? notifPremium, bool? notifEquipesSuivies, bool? notifLiguesSuivies,
+    bool? notifCouverture, int? seuilCouverture,
     bool? pinEnabled, bool? bioEnabled, bool? nocturne, bool? notifPause,
   }) => AppSettings(
     themeMode:     themeMode     ?? this.themeMode,
@@ -74,6 +86,8 @@ class AppSettings {
     notifPremium:  notifPremium  ?? this.notifPremium,
     notifEquipesSuivies: notifEquipesSuivies ?? this.notifEquipesSuivies,
     notifLiguesSuivies:  notifLiguesSuivies  ?? this.notifLiguesSuivies,
+    notifCouverture:     notifCouverture     ?? this.notifCouverture,
+    seuilCouverture:     seuilCouverture     ?? this.seuilCouverture,
     pinEnabled:    pinEnabled    ?? this.pinEnabled,
     bioEnabled:    bioEnabled    ?? this.bioEnabled,
     nocturne:      nocturne      ?? this.nocturne,
@@ -121,6 +135,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       notifPremium:  p.getBool(_kNotifPremium)  ?? true,
       notifEquipesSuivies: p.getBool(_kNotifEquipesSuivies) ?? true,
       notifLiguesSuivies:  p.getBool(_kNotifLiguesSuivies)  ?? true,
+      notifCouverture:     p.getBool(_kNotifCouverture)     ?? true,
+      seuilCouverture:     seuilsCouverture.contains(p.getInt(_kSeuilCouverture))
+          ? p.getInt(_kSeuilCouverture)! : 50,
       pinEnabled:    p.getBool(_kPinEnabled)    ?? false,
       bioEnabled:    p.getBool(_kBioEnabled)    ?? false,
       nocturne:      _themeChanged ? state.nocturne : p.getString(_kTheme) == 'nocturne',
@@ -246,6 +263,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         newVal = !state.notifLiguesSuivies;
         state = state.copyWith(notifLiguesSuivies: newVal);
         await p.setBool(_kNotifLiguesSuivies, newVal);
+
+      // L'alerte de couverture (26 novembre 2026) : compte par compte aussi.
+      case 'couverture':
+        newVal = !state.notifCouverture;
+        state = state.copyWith(notifCouverture: newVal);
+        await p.setBool(_kNotifCouverture, newVal);
     }
 
     if (newVal != null) await _syncPrefToServer(key, newVal);
@@ -291,7 +314,16 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   ///
   /// Volontairement silencieux : l'écran Paramètres est accessible en invité,
   /// où l'appel renvoie 401. Le réglage local reste appliqué dans tous les cas.
-  Future<void> _syncPrefToServer(String key, bool value) async {
+  /// Le seuil de l'alerte de couverture : 30, 50 ou 70 % du gain potentiel.
+  Future<void> setSeuilCouverture(int seuil) async {
+    if (!seuilsCouverture.contains(seuil) || seuil == state.seuilCouverture) return;
+    state = state.copyWith(seuilCouverture: seuil);
+    final p = await SharedPreferences.getInstance();
+    await p.setInt(_kSeuilCouverture, seuil);
+    await _syncPrefToServer('seuil_couverture', seuil);
+  }
+
+  Future<void> _syncPrefToServer(String key, Object value) async {
     try {
       await _ref.read(dioProvider).patch(
         '/profile/notification-prefs', data: {key: value});

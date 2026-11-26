@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import * as svc from '../services/bankroll.service';
 import { partSelonConfiance } from '../services/mise_suggeree';
 import { ErreurMetier, repondreErreur } from '../utils/erreurs';
+import { couverturePourAbonne } from '../services/couverture.service';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
@@ -90,13 +91,25 @@ export const resetBankroll = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
+/**
+ * GET /bankroll/couverture/:pronosticId — combien miser sur l'évènement
+ * inverse de sa sélection, aux cotes du moment (couverture.service.ts).
+ */
+export const getCouverture = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await couverturePourAbonne(req.userId!, req.params.pronosticId));
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
 export const placeBet = async (req: AuthRequest, res: Response) => {
   try {
-    const { pronostic_id, staked_amount } = req.body;
+    const { pronostic_id, staked_amount, cote_obtenue } = req.body;
     if (!pronostic_id || !staked_amount) {
       res.status(400).json({ message: 'pronostic_id et staked_amount requis.' }); return;
     }
-    const bet = await svc.placeBet(req.userId!, pronostic_id, parseFloat(staked_amount));
+    const cote = cote_obtenue === undefined || cote_obtenue === null || cote_obtenue === ''
+      ? undefined : parseFloat(cote_obtenue);
+    const bet = await svc.placeBet(req.userId!, pronostic_id, parseFloat(staked_amount), cote);
     res.status(201).json(bet);
   } catch (e: any) {
     // La saisie fermée n'est pas une demande malformée : l'état du match a

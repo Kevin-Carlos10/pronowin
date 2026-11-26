@@ -353,6 +353,8 @@ export async function placeBet(
   userId:      string,
   pronosticId: string,
   stakedAmount: number,
+  /** La cote obtenue chez le bookmaker (couverture seulement), facultative. */
+  coteBookmaker?: number,
 ) {
   const bankroll = await prisma.userBankroll.findUnique({ where: { userId } });
   if (!bankroll) throw new Error('Configure ton budget d\'abord.');
@@ -436,6 +438,8 @@ export async function placeBet(
         suggestedAmount,
         oddsUsed,
         potentialGain,
+        coteBookmaker: coteBookmaker !== undefined && Number.isFinite(coteBookmaker) && coteBookmaker > 1
+          ? coteBookmaker : null,
       },
     });
   });

@@ -21,8 +21,10 @@ export const FCM_TOPICS = {
  * Catégories exposées comme interrupteurs dans l'écran Paramètres du mobile.
  * `equipes_suivies` et `ligues_suivies` (15 novembre 2026) : les alertes des
  * matchs d'une équipe ou d'une ligue suivie, en plus de « match ».
+ * `couverture` (26 novembre 2026) : l'alerte qui dit combien miser sur
+ * l'évènement inverse d'une sélection enregistrée (couverture.service.ts).
  */
-export const NOTIF_CATEGORIES = ['match', 'promo', 'referral', 'premium', 'equipes_suivies', 'ligues_suivies'] as const;
+export const NOTIF_CATEGORIES = ['match', 'promo', 'referral', 'premium', 'equipes_suivies', 'ligues_suivies', 'couverture'] as const;
 export type NotifCategory = (typeof NOTIF_CATEGORIES)[number];
 
 /**

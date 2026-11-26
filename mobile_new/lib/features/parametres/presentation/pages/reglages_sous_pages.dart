@@ -10,6 +10,7 @@ import '../../../../core/services/reglages_systeme.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/messages.dart';
 import '../../../../shared/widgets/logo_marque.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/notifications_telephone.dart';
 import '../../../../shared/utils/partage_parrainage.dart' show lienTelechargement;
@@ -111,6 +112,40 @@ class NotificationsReglagesPage extends ConsumerWidget {
             valeur: s.notifMatch && s.notifLiguesSuivies,
             onChanged: s.notifMatch ? bascule('ligues_suivies') : null),
         ]),
+        // L'alerte de couverture (26 novembre 2026) : combien miser sur
+        // l'inverse d'une sélection enregistrée, quand les cotes bougent.
+        // Rien sur l'iPhone sans pari.
+        if (!ref.watch(sansPariProvider)) ...[
+          const SizedBox(height: 22),
+          EnTeteReglages(tr(context, "Bankroll")),
+          CarteReglages([
+            LigneInterrupteur(
+              key: const Key('notif-couverture'),
+              icone: Icons.swap_horiz_rounded,
+              titre: tr(context, "Alerte de couverture"),
+              sousTitre: tr(context, "Combien miser sur l’inverse de ta sélection quand les cotes bougent"),
+              valeur: s.notifCouverture,
+              onChanged: bascule('couverture')),
+            if (s.notifCouverture)
+              LigneReglage(
+                key: const Key('notif-seuil-couverture'),
+                icone: Icons.percent_rounded,
+                titre: tr(context, "Seuil de l’alerte"),
+                sousTitre: tr(context, "Dès {arg0} % du gain potentiel garantis", [s.seuilCouverture]),
+                onTap: pause ? null : () => ouvrirSousPage(context, ChoixReglagePage<int>(
+                  titre: tr(context, "Seuil de l’alerte"),
+                  section: tr(context, "Gain garanti minimal"),
+                  options: [
+                    for (final v in seuilsCouverture)
+                      (valeur: v, libelle: tr(context, "{arg0} % du gain potentiel", [v]),
+                        avant: null, cle: Key('seuil-couverture-$v')),
+                  ],
+                  actuel: s.seuilCouverture,
+                  onChoisir: n.setSeuilCouverture,
+                  note: tr(context, "Exemple : 1 000 F misés à 2,00 rapportent 1 000 F de gain. À 50 %, l’alerte part dès qu’une mise sur l’évènement inverse garantit au moins 500 F, quel que soit le résultat."),
+                ))),
+          ]),
+        ],
         const SizedBox(height: 22),
         EnTeteReglages(tr(context, "Téléphone")),
         CarteReglages([
