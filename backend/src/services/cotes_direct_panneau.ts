@@ -15,9 +15,11 @@
  *
  * On ne garde que les marchés du match entier dont l'issue se lit sans
  * ambiguïté : résultat, double chance, nombre de buts, les deux équipes
- * marquent. Les autres marchés du direct (handicap, prochain but…) ont des
- * règles propres au direct ; il vaut mieux les saisir à la main que publier un
- * sens incertain.
+ * marquent, remboursé si match nul. Les autres marchés du direct (handicap,
+ * prochain but…) ont des règles propres au direct ; il vaut mieux les saisir à
+ * la main que publier un sens incertain. Les quarts de ligne de buts (2,25)
+ * restent aussi de côté : la mise y est coupée en deux, ce que le règlement
+ * automatique ne fait pas.
  */
 import type { LiveOdds } from './api_football_insights.service';
 import {
@@ -25,7 +27,7 @@ import {
 } from './api_football.service';
 
 /** Les noms du flux en direct (en minuscules), vers le nom d'avant-match. */
-const MARCHES: Record<string, 'Match Winner' | 'Double Chance' | 'Goals Over/Under' | 'Both Teams Score'> = {
+const MARCHES: Record<string, 'Match Winner' | 'Double Chance' | 'Goals Over/Under' | 'Both Teams Score' | 'Home/Away'> = {
   'match winner': 'Match Winner',
   'fulltime result': 'Match Winner',
   'full time result': 'Match Winner',
@@ -39,6 +41,9 @@ const MARCHES: Record<string, 'Match Winner' | 'Double Chance' | 'Goals Over/Und
   'total goals': 'Goals Over/Under',
   'both teams score': 'Both Teams Score',
   'both teams to score': 'Both Teams Score',
+  // Remboursé si match nul : « Home/Away » est son nom avant le match.
+  'draw no bet': 'Home/Away',
+  'home/away': 'Home/Away',
 };
 
 function issue(v: string): string | null {
@@ -61,6 +66,10 @@ function paire(v: string): string | null {
 function valeur(nom: string, v: { value: string; ligne?: string }): string | null {
   switch (nom) {
     case 'Match Winner': return issue(v.value);
+    case 'Home/Away': {
+      const i = issue(v.value);
+      return i === 'Home' || i === 'Away' ? i : null;
+    }
     case 'Double Chance': return paire(v.value);
     case 'Both Teams Score': {
       const x = v.value.trim().toLowerCase();
@@ -70,6 +79,8 @@ function valeur(nom: string, v: { value: string; ligne?: string }): string | nul
       const sens = v.value.trim().toLowerCase();
       const ligne = Number(v.ligne);
       if ((sens !== 'over' && sens !== 'under') || !v.ligne || !Number.isFinite(ligne) || ligne < 0) return null;
+      // Demi ou entière seulement : pas de quart de ligne.
+      if (Math.abs(ligne * 2 - Math.round(ligne * 2)) > 1e-9) return null;
       return `${sens === 'over' ? 'Over' : 'Under'} ${v.ligne}`;
     }
     default: return null;

@@ -3,7 +3,7 @@
  * et combien miser dessus pour garantir un gain quel que soit le résultat.
  */
 import {
-  calculerCouverture, coteDe, libelleSelection, seuilAtteint, seuilDe,
+  calculerCouverture, coteDe, libelleSelection, noteRemboursement, remboursable, resultatInverse, seuilAtteint, seuilDe,
   selectionDuPronostic, selectionInverse, type MarcheCote,
 } from '../services/couverture';
 import { pariBankroll } from '../schemas/entrees';
@@ -26,13 +26,36 @@ describe('la sélection d\'un pronostic', () => {
     expect(selectionDuPronostic({ predictionType: 'btts' })).toEqual({ marche: 'btts', oui: true });
   });
 
-  it('un marché sans inverse exact n\'est pas couvert : score exact, handicap, ligne entière', () => {
+  it('un marché sans inverse exact n\'est pas couvert : score exact, handicap, quart de ligne', () => {
     expect(selectionDuPronostic({ marketName: 'Exact Score', marketValue: '2:1' })).toBeNull();
     expect(selectionDuPronostic({ marketName: 'Asian Handicap', marketValue: 'Home -1' })).toBeNull();
-    // Sur une ligne entière, un remboursement est possible : la couverture
-    // promettrait un gain qu'elle ne tient pas.
-    expect(selectionDuPronostic({ marketName: 'Goals Over/Under', marketValue: 'Over 2' })).toBeNull();
+    // Sur un quart de ligne, la mise est coupée en deux : l'inverse n'est plus exact.
+    expect(selectionDuPronostic({ marketName: 'Goals Over/Under', marketValue: 'Over 2.25' })).toBeNull();
     expect(selectionDuPronostic({ predictionType: 'other' })).toBeNull();
+  });
+
+  it('ligne entière et « remboursé si match nul » (27 novembre 2026) : couverts, et remboursables ensemble', () => {
+    const plus2 = selectionDuPronostic({ marketName: 'Goals Over/Under', marketValue: 'Over 2' })!;
+    expect(plus2).toEqual({ marche: 'buts', plus: true, ligne: 2 });
+    expect(remboursable(plus2)).toBe(true);
+    expect(noteRemboursement(plus2, 'fr')).toBe('S\'il y a exactement 2 buts, les deux mises sont remboursées : ni gain ni perte.');
+    const dnb = selectionDuPronostic({ marketName: 'Home/Away', marketValue: 'Home' })!;
+    expect(dnb).toEqual({ marche: 'nul_rembourse', issue: 'Home' });
+    expect(selectionInverse(dnb)).toEqual({ marche: 'nul_rembourse', issue: 'Away' });
+    expect(selectionDuPronostic({ marketName: 'Draw No Bet', marketValue: 'Away' })).toEqual({ marche: 'nul_rembourse', issue: 'Away' });
+    expect(remboursable(dnb)).toBe(true);
+    expect(remboursable({ marche: 'buts', plus: true, ligne: 2.5 })).toBe(false);
+    expect(libelleSelection({ marche: 'nul_rembourse', issue: 'Away' }, 'Arsenal', 'Chelsea', 'fr')).toBe('Chelsea, remboursé si match nul');
+    // Les deux écritures de la cote : avant le match et en direct.
+    expect(coteDe([{ nom: 'Home/Away', valeurs: [{ valeur: 'Away', cote: 3.1 }] }], { marche: 'nul_rembourse', issue: 'Away' })).toBe(3.1);
+    expect(coteDe([{ nom: 'draw no bet', valeurs: [{ valeur: '2', cote: 2.9 }] }], { marche: 'nul_rembourse', issue: 'Away' })).toBe(2.9);
+  });
+
+  it('le résultat de l\'inverse suit celui de la sélection couverte', () => {
+    expect(resultatInverse('WIN')).toBe('LOSS');
+    expect(resultatInverse('LOSS')).toBe('WIN');
+    expect(resultatInverse('PUSH')).toBe('PUSH');
+    expect(resultatInverse(null)).toBeNull();
   });
 });
 
@@ -75,7 +98,19 @@ describe('la cote de l\'inverse', () => {
 
 describe('le calcul', () => {
   it('1 000 F sur Plus de 2,5 à 2,00 ; Moins de 2,5 monte à 4,00 : 500 F dessus, +500 F garantis', () => {
-    expect(calculerCouverture(1000, 2, 4)).toEqual({ miseCouverture: 500, gainGaranti: 500, gainPotentiel: 1000, part: 0.5 });
+    expect(calculerCouverture(1000, 2, 4)).toEqual({
+      miseCouverture: 500, gainGaranti: 500, gainPotentiel: 1000, part: 0.5, siSelection: 500, siInverse: 500,
+    });
+  });
+
+  it('récupérer sa mise : 334 F sur l\'inverse (arrondi au-dessus), +666 F si la sélection passe, jamais de perte', () => {
+    const c = calculerCouverture(1000, 2, 4, 1, 'mise_remboursee')!;
+    expect(c.miseCouverture).toBe(334);                 // 1 000 ÷ 3 = 333,3 → 334
+    expect(c.siSelection).toBe(666);
+    expect(c.siInverse).toBe(2);
+    expect(c.gainGaranti).toBe(2);
+    // Même règle que le gain égal : sans gain garanti possible, rien à sauver.
+    expect(calculerCouverture(1000, 2, 1.9, 1, 'mise_remboursee')!.siSelection).toBeLessThan(0);
   });
 
   it('arrondi au franc ; le gain garanti tient compte de l\'arrondi', () => {

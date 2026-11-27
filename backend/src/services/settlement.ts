@@ -139,6 +139,14 @@ export function _computeCustomMarketResult(
   switch (marketName) {
     case 'Match Winner':
       return isWDA(marketValue) ? (_winner(ft) === marketValue ? 'WIN' : 'LOSS') : null;
+    // Remboursé si match nul (27 novembre 2026) : « Home/Away » avant le
+    // match, « Draw No Bet » en direct.
+    case 'Home/Away':
+    case 'Draw No Bet': {
+      if (marketValue !== 'Home' && marketValue !== 'Away') return null;
+      const vainqueur = _winner(ft);
+      return vainqueur === 'Draw' ? 'PUSH' : vainqueur === marketValue ? 'WIN' : 'LOSS';
+    }
     case 'First Half Winner':
       return fh && isWDA(marketValue) ? (_winner(fh) === marketValue ? 'WIN' : 'LOSS') : null;
     case 'Second Half Winner':

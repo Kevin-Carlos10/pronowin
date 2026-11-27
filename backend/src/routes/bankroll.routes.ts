@@ -3,7 +3,10 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import * as C from '../controllers/bankroll.controller';
 import { valider } from '../middleware/valider';
-import { budgetBankroll, confirmationMise, pariBankroll } from '../schemas/entrees';
+import {
+  apercuCombineBankroll, budgetBankroll, combineBankroll, confirmationMise, couvertureBankroll, pariBankroll,
+  resultatSelectionLibre,
+} from '../schemas/entrees';
 
 const r = Router();
 
@@ -16,6 +19,13 @@ r.get   ('/stats',     authMiddleware, C.getStats);
 r.get   ('/suggest',   authMiddleware, C.getSuggestedStake);
 // La couverture de sa mise sur ce pronostic, maintenant (26 novembre 2026).
 r.get   ('/couverture/:pronosticId', authMiddleware, C.getCouverture);
+// « J'ai couvert » et les coupons combinés (27 novembre 2026).
+r.post  ('/couvertures', authMiddleware, valider({ body: couvertureBankroll }), C.enregistrerCouverture);
+r.post  ('/combines/apercu', authMiddleware, valider({ body: apercuCombineBankroll }), C.apercuCombine);
+r.post  ('/combines', authMiddleware, valider({ body: combineBankroll }), C.placerCombine);
+r.get   ('/combines/:id/couverture', authMiddleware, C.getCouvertureCombine);
+r.post  ('/combines/:id/selections/:selectionId/resultat', authMiddleware,
+  valider({ body: resultatSelectionLibre }), C.reglerSelectionLibre);
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 r.get   ('/admin/list',      adminMiddleware, C.adminListBankrolls);

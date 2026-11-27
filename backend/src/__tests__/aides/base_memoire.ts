@@ -32,6 +32,14 @@ type Lien =
       cleEtrangere: string;
       vers: Map<string, any>;
       liens?: Liens;
+    }
+  | {
+      // Un-à-un vu du côté sans clé (`bet.couvertureEnregistree`) : la ligne
+      // de la table visée qui porte notre identifiant, ou null.
+      unSeul: true;
+      cleEtrangere: string;
+      vers: Map<string, any>;
+      liens?: Liens;
     };
 
 type Liens = Record<string, Lien>;
@@ -45,6 +53,9 @@ export interface BaseMemoire {
   bankrolls:     Map<string, any>;
   bankrollBets:  Map<string, any>;
   mouvements:    Map<string, any>;
+  combines:      Map<string, any>;
+  selectionsCombine: Map<string, any>;
+  couvertures:   Map<string, any>;
   pronostics:    Map<string, any>;
   matches:       Map<string, any>;
 }
@@ -116,6 +127,9 @@ export function creerBase() {
     bankrolls:     new Map(),
     bankrollBets:  new Map(),
     mouvements:    new Map(),
+    combines:      new Map(),
+    selectionsCombine: new Map(),
+    couvertures:   new Map(),
     pronostics:    new Map(),
     matches:       new Map(),
   };
@@ -135,6 +149,13 @@ export function creerBase() {
     for (const nom of Object.keys(include)) {
       const lien = liens[nom];
       if (!include[nom] || !lien) continue;
+
+      if ('unSeul' in lien) {
+        const opts = typeof include[nom] === 'object' ? include[nom] : {};
+        const trouve = [...lien.vers.values()].find((x) => x[lien.cleEtrangere] === ligne.id);
+        enrichie[nom] = trouve ? joindre({ ...trouve }, opts.include, lien.liens ?? {}) : null;
+        continue;
+      }
 
       if ('plusieurs' in lien) {
         // Les options de l'include portent ici : `orderBy`, `take`, et les
@@ -217,6 +238,17 @@ export function creerBase() {
         lignes.forEach((l) => appliquer(l, data));
         return { count: lignes.length };
       },
+      delete: async ({ where }: any) => {
+        const l = filtrer(where)[0];
+        if (!l) throw new Error('ligne introuvable');
+        magasin.delete(l.id);
+        return { ...l };
+      },
+      deleteMany: async ({ where }: any = {}) => {
+        const lignes = filtrer(where);
+        lignes.forEach((l) => magasin.delete(l.id));
+        return { count: lignes.length };
+      },
       create: async ({ data }: any) => {
         verifierUnicite(data);
         const id = data.id ?? `auto-${++compteur}`;
@@ -264,6 +296,9 @@ export function creerBase() {
     };
   };
 
+  const liensMatch = { match: { cle: 'matchId', vers: base.matches } };
+  const couvertureDe = (cle: string) => ({ unSeul: true as const, cleEtrangere: cle, vers: base.couvertures });
+
   const prisma: any = {
     user:         table(base.users),
     referral:     table(base.referrals, {
@@ -279,14 +314,34 @@ export function creerBase() {
         plusieurs: true,
         cleEtrangere: 'bankrollId',
         vers: base.bankrollBets,
-        liens: { pronostic: { cle: 'pronosticId', vers: base.pronostics } },
+        liens: {
+          pronostic: { cle: 'pronosticId', vers: base.pronostics, liens: liensMatch },
+          couvertureEnregistree: couvertureDe('pariId'),
+        },
       },
     }),
     bankrollBet:  table(base.bankrollBets, {
-      pronostic: { cle: 'pronosticId', vers: base.pronostics },
+      pronostic: { cle: 'pronosticId', vers: base.pronostics, liens: liensMatch },
       bankroll:  { cle: 'bankrollId', vers: base.bankrolls, liens: { user: { cle: 'userId', vers: base.users } } },
+      couvertureEnregistree: couvertureDe('pariId'),
     }),
     bankrollMouvement: table(base.mouvements),
+    // Combinés et couvertures enregistrées (27 novembre 2026).
+    bankrollCombine: table(base.combines, {
+      bankroll:   { cle: 'bankrollId', vers: base.bankrolls, liens: { user: { cle: 'userId', vers: base.users } } },
+      selections: {
+        plusieurs: true, cleEtrangere: 'combineId', vers: base.selectionsCombine,
+        liens: { pronostic: { cle: 'pronosticId', vers: base.pronostics, liens: liensMatch } },
+      },
+      couvertureEnregistree: couvertureDe('combineId'),
+    }),
+    bankrollCombineSelection: table(base.selectionsCombine, {
+      combine:   { cle: 'combineId', vers: base.combines },
+      pronostic: { cle: 'pronosticId', vers: base.pronostics, liens: liensMatch },
+    }),
+    bankrollCouverture: table(base.couvertures, {
+      bankroll: { cle: 'bankrollId', vers: base.bankrolls },
+    }, ['pariId', 'combineId']),
     pronostic:    table(base.pronostics, { match: { cle: 'matchId', vers: base.matches } }),
     match:        table(base.matches),
     // Sans isolation : voir la note en tête de fichier.

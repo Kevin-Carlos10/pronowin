@@ -128,3 +128,21 @@ describe('GET /admin/match/:id/odds', () => {
     expect(res.json).toHaveBeenCalledWith(avantMatch);
   });
 });
+
+describe('le nul remboursé et les quarts de ligne (27 novembre 2026)', () => {
+  it('« Draw No Bet » devient « Home/Away » ; un quart de ligne n’est pas proposé', () => {
+    const r = cotesDuDirectPourPanneau({
+      fixtureId: 1, elapsed: 30, stale: false,
+      markets: [
+        { key: 'draw no bet', name: 'Remboursé si nul', values: [{ value: 'Home', odd: 1.6 }, { value: 'Away', odd: 2.3 }] },
+        { key: 'over/under line', name: 'Plus/Moins', values: [
+          { value: 'Over', odd: 1.9, ligne: '2' }, { value: 'Over', odd: 2.2, ligne: '2.25' },
+        ] },
+      ],
+    } as any, 'A', 'B');
+    expect(r.markets).toEqual([
+      { name: 'Home/Away', values: [{ value: 'Home', odd: 1.6 }, { value: 'Away', odd: 2.3 }] },
+      { name: 'Goals Over/Under', values: [{ value: 'Over 2', odd: 1.9 }] },
+    ]);
+  });
+});

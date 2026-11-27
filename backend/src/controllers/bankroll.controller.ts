@@ -5,7 +5,9 @@ import { prisma } from '../lib/prisma';
 import * as svc from '../services/bankroll.service';
 import { partSelonConfiance } from '../services/mise_suggeree';
 import { ErreurMetier, repondreErreur } from '../utils/erreurs';
-import { couverturePourAbonne } from '../services/couverture.service';
+import { couvertureCombinePourAbonne, couverturePourAbonne } from '../services/couverture.service';
+import * as combines from '../services/combines.service';
+import { couverturePourApi, enregistrerCouverture as enregistrer } from '../services/couvertures_enregistrees.service';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
@@ -20,6 +22,7 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
     // cinquante-et-unième, les chiffres devenaient faux en silence.
     const resume = await svc.resumeParis(bankroll.id);
     const plafond = await svc.plafondExposition();
+    const listeCombines = await combines.lireCombines(bankroll.id);
 
     res.json({
       id:             bankroll.id,
@@ -47,6 +50,8 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
         // M1 : la mise réelle se confirme au résultat, pendant quelques jours.
         mise_confirmee:  b.miseConfirmeeLe !== null,
         a_confirmer:     svc.miseAConfirmer(b),
+        // La mise sur l'inverse, si l'abonné l'a enregistrée (27 novembre 2026).
+        couverture_enregistree: couverturePourApi(b.couvertureEnregistree),
         match: {
           id:          b.pronostic.match.id,
           home_team:   b.pronostic.match.homeTeam,
@@ -66,7 +71,91 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
         confidence_score: b.pronostic.confidenceScore,
         confidence_pct: pourcentageConfiance(b.pronostic),
       })),
+      // Les coupons combinés (27 novembre 2026), du plus récent au plus ancien.
+      combines: listeCombines.map(combinePourApi),
     });
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** Un combiné au format de l'application. */
+function combinePourApi(c: Awaited<ReturnType<typeof combines.lireCombines>>[number]) {
+  return {
+    id:             c.id,
+    staked_amount:  c.stakedAmount,
+    odds_used:      c.oddsUsed,
+    potential_gain: c.potentialGain,
+    note_retenue:   c.noteRetenue,
+    result:         c.result,
+    retour:         c.retour,
+    profit:         c.profit,
+    settled_at:     c.settledAt,
+    created_at:     c.createdAt,
+    couverture_enregistree: couverturePourApi(c.couvertureEnregistree),
+    selections: c.selections.map(l => ({
+      id:           l.id,
+      ordre:        l.ordre,
+      pronostic_id: l.pronosticId,
+      libre:        l.pronosticId === null,
+      libre_match:  l.libreMatch,
+      libre_selection: l.libreSelection,
+      cote:         l.cote,
+      note:         l.note,
+      result:       l.annulee ? 'PUSH' : l.result,
+      annulee:      l.annulee,
+      prediction_label:    l.pronostic?.predictionLabel ?? null,
+      prediction_label_en: l.pronostic?.predictionLabelEn ?? null,
+      match: l.pronostic?.match ? {
+        id:          l.pronostic.match.id,
+        home_team:   l.pronostic.match.homeTeam,
+        away_team:   l.pronostic.match.awayTeam,
+        match_date:  l.pronostic.match.matchDate,
+        league:      l.pronostic.match.league,
+        home_team_logo: l.pronostic.match.homeTeamLogo,
+        away_team_logo: l.pronostic.match.awayTeamLogo,
+        status:      statutPublic(l.pronostic.match.status),
+        home_score:  l.pronostic.match.homeScore,
+        away_score:  l.pronostic.match.awayScore,
+      } : null,
+    })),
+  };
+}
+
+/** POST /bankroll/couvertures — « J'ai couvert » (27 novembre 2026). */
+export const enregistrerCouverture = async (req: AuthRequest, res: Response) => {
+  try {
+    const h = await enregistrer(req.userId!, req.body ?? {});
+    res.status(201).json({ couverture: couverturePourApi(h), current_balance: h.current_balance });
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** GET /bankroll/combines/:id/couverture — la couverture de la dernière sélection. */
+export const getCouvertureCombine = async (req: AuthRequest, res: Response) => {
+  try {
+    const r = await couvertureCombinePourAbonne(req.userId!, req.params.id);
+    if (!r) { res.status(404).json({ message: 'Combiné introuvable.' }); return; }
+    res.json(r);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** POST /bankroll/combines/apercu — { selections } : la mise, la cote, le gain. */
+export const apercuCombine = async (req: AuthRequest, res: Response) => {
+  try { res.json(await combines.apercuCombine(req.userId!, req.body?.selections)); }
+  catch (e: any) { repondreErreur(res, e); }
+};
+
+/** POST /bankroll/combines — { selections, staked_amount }. */
+export const placerCombine = async (req: AuthRequest, res: Response) => {
+  try {
+    const c = await combines.placerCombine(req.userId!, req.body?.selections, Number(req.body?.staked_amount));
+    res.status(201).json({ id: c.id, current_balance: c.current_balance });
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** POST /bankroll/combines/:id/selections/:selectionId/resultat — { result } : une sélection libre. */
+export const reglerSelectionLibre = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await combines.reglerSelectionLibre(
+      req.userId!, req.params.id, req.params.selectionId, req.body?.result ?? null));
   } catch (e: any) { repondreErreur(res, e); }
 };
 

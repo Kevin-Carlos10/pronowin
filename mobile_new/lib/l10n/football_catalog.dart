@@ -124,6 +124,13 @@ const footballCatalogJson = r'''{
       "aliases": []
     },
     {
+      "en": "Home/Away",
+      "fr": "Remboursé si match nul",
+      "aliases": [
+        "Draw No Bet"
+      ]
+    },
+    {
       "en": "Double Chance - First Half",
       "fr": "Double chance — 1ère MT",
       "aliases": [

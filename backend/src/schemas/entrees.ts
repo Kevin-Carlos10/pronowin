@@ -68,6 +68,43 @@ export const pariBankroll = z.object({
     (n) => n === undefined || (n > 1 && n <= 1000), 'Cote invalide : entre 1,01 et 1 000.'),
 });
 
+/** Une sélection d'un combiné : un pronostic PronoWin, ou une sélection libre. */
+const selectionCombine = z.union([
+  z.object({ pronostic_id: identifiant('le pronostic') }).strict(),
+  z.object({
+    libre: z.object({
+      match:     z.string({ required_error: 'Indique le match.' }).trim().min(2, 'Indique le match.').max(80),
+      selection: z.string({ required_error: 'Indique la sélection.' }).trim().min(2, 'Indique la sélection.').max(80),
+      cote:      nombre('la cote').refine((n) => n >= 1.01 && n <= 1000, 'Cote invalide : entre 1,01 et 1 000.'),
+    }).strict(),
+  }).strict(),
+]);
+const selectionsCombine = z.array(selectionCombine, { required_error: 'Ajoute les sélections du combiné.' })
+  .min(2, 'Un combiné compte au moins 2 sélections.').max(10, 'Un combiné compte au plus 10 sélections.');
+
+/** POST /bankroll/combines/apercu (27 novembre 2026). */
+export const apercuCombineBankroll = z.object({ selections: selectionsCombine });
+
+/** POST /bankroll/combines — la mise est celle de l'aperçu, vérifiée à nouveau. */
+export const combineBankroll = z.object({
+  selections:    selectionsCombine,
+  staked_amount: nombre('la mise').refine((n) => n > 0, 'La mise doit être positive.'),
+});
+
+/** POST /bankroll/combines/:id/selections/:selectionId/resultat — une sélection libre. */
+export const resultatSelectionLibre = z.object({
+  result: z.enum(['WIN', 'LOSS', 'PUSH']).nullable(),
+});
+
+/** POST /bankroll/couvertures — « J'ai couvert » : la mise sur l'inverse. */
+export const couvertureBankroll = z.object({
+  pari_id:    identifiant('la mise').optional(),
+  combine_id: identifiant('le combiné').optional(),
+  mise:       nombre('la mise').refine((n) => n > 0 && n <= 1e12, 'La mise doit être positive.'),
+  cote:       nombre('la cote').refine((n) => n >= 1.01 && n <= 1000, 'Cote invalide : entre 1,01 et 1 000.'),
+  strategie:  z.enum(['gain_egal', 'mise_remboursee', 'libre']).optional(),
+}).refine((v) => !v.pari_id !== !v.combine_id, 'Indique la mise ou le combiné à couvrir.');
+
 /** POST /bankroll/bet/:id/confirmer — sans montant : « oui, c'est bien elle ». */
 export const confirmationMise = z.object({
   mise_reelle: nombreFacultatif('la mise réelle').refine(

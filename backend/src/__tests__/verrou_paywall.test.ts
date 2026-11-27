@@ -54,6 +54,12 @@ const EXCEPTIONS: Record<string, { ligne: string; raison: string }[]> = {
       raison: 'paris que l\'utilisateur a lui-même posés — il connaît déjà la '
             + 'décision, la lui cacher rendrait son propre historique illisible',
     },
+    {
+      ligne:  'prediction_label:    l.pronostic?.predictionLabel ?? null,',
+      raison: 'sélections d\'un combiné que l\'utilisateur a lui-même composé ; '
+            + 'placerCombine refuse un pronostic VIP à un non-abonné '
+            + '(estVerrouille, combines.service.ts)',
+    },
   ],
   'schemas/entrees.ts': [
     {

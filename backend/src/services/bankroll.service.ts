@@ -1,14 +1,18 @@
 ﻿import crypto from 'crypto';
-import { Prisma } from '@prisma/client';
 
 import { NotificationService } from './notification.service';
 import { nomDevise } from '../utils/devise';
 import { rencontre } from '../utils/noms_equipes';
 import { prisma } from '../lib/prisma';
 import { ErreurMetier } from '../utils/erreurs';
-import { lireConfig } from './app_config.service';
-import { miseSuggeree, pasDeDevise } from './mise_suggeree';
+import { miseSuggeree } from './mise_suggeree';
 import { MESSAGE_REFUS, RefusPari, refusDePari } from './verrou_pari';
+import { aLUnite, mouvoir, soldeExact, type Tx, type TypeMouvement } from './bankroll_journal';
+import { PlafondExposition, engageEnCours, plafondExposition, verifierPlafond } from './bankroll_exposition';
+import {
+  annulerSelectionsDuPronostic, notifierReglementsCombines, reglerSelectionsDuPronostic, type ReglementCombine,
+} from './combines.service';
+import { annulerCouverturesDuPronostic, reglerCouverturesDuPronostic } from './couvertures_enregistrees.service';
 
 const notifSvc = new NotificationService();
 
@@ -33,68 +37,15 @@ export class PariFerme extends Error {
 }
 
 // ── Montants exacts et journal des mouvements (constat B1) ───────────────────
+//
+// `aLUnite`, `soldeExact` et `mouvoir` vivent dans `bankroll_journal.ts`
+// (27 novembre 2026), partagés avec les combinés et les couvertures.
 
 /** Les devises que la bankroll accepte — celles que l'application propose. */
 export const DEVISES_BANKROLL = ['XOF', 'XAF', 'GNF', 'EUR'] as const;
 
-/**
- * Un montant ramené à l'unité de la devise, par défaut.
- *
- * Le franc CFA n'a pas de centimes. Un gain potentiel de 1 234 × 1,73 était
- * gardé à 2 134,82 FCFA — une somme qu'aucun bookmaker ne verse —, et ces
- * centimes fictifs, additionnés en virgule flottante, rendaient le solde
- * inexact. En unités entières, un nombre à virgule flottante est exact : les
- * additions répétées du solde ne dérivent plus.
- */
-export function aLUnite(montant: number, devise: string | null | undefined): number {
-  const facteur = 1 / pasDeDevise(devise);
-  return Math.floor(montant * facteur + 1e-9) / facteur;
-}
-
-/** Le solde à la précision de la devise : au centime près pour l'euro. */
-function soldeExact(solde: number, devise: string | null | undefined): number {
-  const facteur = 1 / pasDeDevise(devise);
-  return Math.round(solde * facteur) / facteur;
-}
-
-type Tx = Prisma.TransactionClient;
-export type TypeMouvement =
-  'ouverture' | 'budget' | 'devise' | 'mise' | 'reglement' | 'correction_mise' | 'reinitialisation'
-  | 'annulation';
-
-/**
- * Déplace le solde disponible et l'inscrit au journal, dans la transaction de
- * l'appelant. C'est le seul chemin qui modifie `currentBalance` : la somme
- * des mouvements d'une bankroll vaut ainsi son solde.
- *
- * `siSolde` : ne bouge que si le solde vaut encore ce montant — la garde de
- * placeBet contre deux mises simultanées. Renvoie le solde après le
- * mouvement, ou `null` si la garde a refusé.
- */
-async function mouvoir(
-  tx: Tx, bankrollId: string, devise: string, montant: number, type: TypeMouvement,
-  opts: { pariId?: string; motif?: string; siSolde?: number } = {},
-): Promise<number | null> {
-  const where: Prisma.UserBankrollWhereInput = { id: bankrollId };
-  if (opts.siSolde !== undefined) where.currentBalance = opts.siSolde;
-  const r = await tx.userBankroll.updateMany({ where, data: { currentBalance: { increment: montant } } });
-  if (r.count === 0) return null;
-
-  // La ligne est verrouillée par l'UPDATE jusqu'à la fin de la transaction :
-  // ce qu'on relit est notre écriture, pas celle d'un autre.
-  const lu = await tx.userBankroll.findUnique({ where: { id: bankrollId } });
-  let solde = lu!.currentBalance;
-  const exact = soldeExact(solde, devise);
-  if (exact !== solde) {
-    await tx.userBankroll.update({ where: { id: bankrollId }, data: { currentBalance: exact } });
-    solde = exact;
-  }
-  await tx.bankrollMouvement.create({ data: {
-    bankrollId, type, montant, soldeApres: solde, pariId: opts.pariId ?? null, motif: opts.motif ?? null,
-    creeLe: new Date(),
-  } });
-  return solde;
-}
+export { aLUnite };
+export type { TypeMouvement };
 
 /**
  * Le journal d'une bankroll rend-il compte de son solde ?
@@ -123,34 +74,10 @@ export async function verifierMouvements(bankrollId: string) {
 }
 
 // ── Plafond d'exposition (constat B2) ────────────────────────────────────────
-
-/**
- * La part de la bankroll que les mises en cours peuvent engager ensemble, ou
- * `null` : pas de plafond.
- *
- * Chaque mise respecte le barème, mais rien ne limitait leur somme : cinq
- * pronostics notés 5 le même soir engageaient 25 % du solde. Le seuil est une
- * décision produit, réglée dans le panneau (BANKROLL_PLAFOND_EXPOSITION) ;
- * vide, il n'y a pas de plafond.
- */
-export async function plafondExposition(): Promise<number | null> {
-  const { valeurs } = await lireConfig();
-  const brut = (valeurs as Record<string, string>).BANKROLL_PLAFOND_EXPOSITION ?? '';
-  const pct = Number(brut);
-  return brut.trim() !== '' && Number.isFinite(pct) && pct > 0 && pct <= 100 ? pct / 100 : null;
-}
-
-export class PlafondExposition extends ErreurMetier {
-  constructor(plafond: number, engage: number, capital: number, devise: string) {
-    const fmt = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} ${nomDevise(devise)}`;
-    super(
-      `Tes paris en cours engagent déjà ${fmt(engage)} sur ${fmt(capital)}. ` +
-      `Le plafond est de ${Math.round(plafond * 100)} % de ta bankroll : ` +
-      'attends le résultat d\'un pari en cours avant d\'en ajouter un.',
-      409, 'EXPOSURE_CAP');
-    this.name = 'PlafondExposition';
-  }
-}
+//
+// Dans `bankroll_exposition.ts` (27 novembre 2026) : les combinés et les
+// couvertures engagent aussi le solde.
+export { PlafondExposition, plafondExposition };
 
 // ── Mise suggérée ─────────────────────────────────────────────────────────────
 //
@@ -185,7 +112,7 @@ export async function getBankroll(userId: string) {
     where: { userId },
     include: {
       bets: {
-        include: { pronostic: { include: { match: true } } },
+        include: { pronostic: { include: { match: true } }, couvertureEnregistree: true },
         orderBy: { createdAt: 'desc' },
         take: PARIS_AFFICHES_MAX,
       },
@@ -222,6 +149,23 @@ export async function resumeParis(bankrollId: string) {
   // Un remboursé ne départage pas : il reste hors du taux de réussite.
   const departagent = gagnes + perdus;
 
+  // Les combinés et les couvertures enregistrées (27 novembre 2026) comptent
+  // dans le résultat net et dans l'engagé — ce sont des mises sorties du
+  // solde —, pas dans le taux de réussite, qui juge les sélections simples.
+  const [combines, couvertures] = await Promise.all([
+    prisma.bankrollCombine.groupBy({
+      by: ['result'], where: { bankrollId }, _count: { _all: true }, _sum: { profit: true, stakedAmount: true },
+    }),
+    prisma.bankrollCouverture.groupBy({
+      by: ['result'], where: { bankrollId }, _count: { _all: true }, _sum: { profit: true, mise: true },
+    }),
+  ]);
+  const combine = (r: string | null) => combines.find((g) => g.result === r);
+  const profitCombines = combines.reduce((n, g) => n + (g._sum.profit ?? 0), 0);
+  const profitCouvertures = couvertures.reduce((n, g) => n + (g._sum.profit ?? 0), 0);
+  const engageCombines = combine(null)?._sum.stakedAmount ?? 0;
+  const engageCouvertures = couvertures.find((g) => g.result === null)?._sum.mise ?? 0;
+
   return {
     total,
     gagnes,
@@ -232,7 +176,7 @@ export async function resumeParis(bankrollId: string) {
       ? Math.round((gagnes / departagent) * 100)
       : 0,
     profit_net: Math.round(
-      parStatut.reduce((n, g) => n + (g._sum.profit ?? 0), 0) * 100) / 100,
+      (parStatut.reduce((n, g) => n + (g._sum.profit ?? 0), 0) + profitCombines + profitCouvertures) * 100) / 100,
 
     /**
      * Ce qui est engagé sur des paris non tranchés.
@@ -244,7 +188,21 @@ export async function resumeParis(bankrollId: string) {
      * perdu. Les trois grandeurs ne mesurent pas la même chose et doivent
      * être nommées séparément.
      */
-    mises_en_cours: Math.round(mise(null) * 100) / 100,
+    mises_en_cours: Math.round((mise(null) + engageCombines + engageCouvertures) * 100) / 100,
+
+    combines: {
+      total:      combines.reduce((n, g) => n + g._count._all, 0),
+      gagnes:     combine('WIN')?._count._all ?? 0,
+      perdus:     combine('LOSS')?._count._all ?? 0,
+      rembourses: combine('PUSH')?._count._all ?? 0,
+      en_attente: combine(null)?._count._all ?? 0,
+      profit:     Math.round(profitCombines * 100) / 100,
+    },
+    couvertures: {
+      total:      couvertures.reduce((n, g) => n + g._count._all, 0),
+      en_attente: couvertures.find((g) => g.result === null)?._count._all ?? 0,
+      profit:     Math.round(profitCouvertures * 100) / 100,
+    },
   };
 }
 
@@ -331,12 +289,11 @@ export async function resetBankroll(userId: string) {
   //
   // Repartir du budget **moins ce qui est encore engagé** laisse l'arithmétique
   // du règlement juste, quel que soit le moment de la remise à zéro.
+  //
+  // Les combinés et les couvertures enregistrées en cours aussi (27 novembre
+  // 2026) : leur mise est sortie du solde, et leur règlement crédite tout.
   return prisma.$transaction(async (tx) => {
-    const { _sum } = await tx.bankrollBet.aggregate({
-      where: { bankrollId: bankroll.id, result: null },
-      _sum:  { stakedAmount: true },
-    });
-    const engage = _sum.stakedAmount ?? 0;
+    const { total: engage } = await engageEnCours(bankroll.id, tx);
     const cible  = soldeExact(bankroll.totalBudget - engage, bankroll.currency);
 
     // Garde sur le solde lu : une mise posée entre-temps a déjà déplacé le
@@ -403,21 +360,8 @@ export async function placeBet(
   const oddsUsed        = pro.oddsRecommended;
   const potentialGain   = aLUnite(stakedAmount * oddsUsed, bankroll.currency);
 
-  const plafond = await plafondExposition();
-  if (plafond !== null) {
-    const { _sum } = await prisma.bankrollBet.aggregate({
-      where: { bankrollId: bankroll.id, result: null },
-      _sum:  { stakedAmount: true },
-    });
-    const engage  = _sum.stakedAmount ?? 0;
-    // Rapporté à tout ce que la bankroll contient : le disponible plus ce qui
-    // est déjà engagé. Rapporté au seul disponible, le plafond se resserrerait
-    // à chaque mise.
-    const capital = bankroll.currentBalance + engage;
-    if (engage + stakedAmount > plafond * capital + 1e-9) {
-      throw new PlafondExposition(plafond, engage, capital, bankroll.currency);
-    }
-  }
+  // Engagé : mises simples, combinés et couvertures en cours (27 novembre 2026).
+  await verifierPlafond(bankroll, stakedAmount);
 
   // Déduction atomique : le solde doit encore être celui utilisé pour le calcul.
   // La condition sur le solde est évaluée par Postgres au moment de l'UPDATE
@@ -582,6 +526,8 @@ export function _settlementBalanceDelta(
 // reconciled too, so correcting an erroneous verdict fixes both the history
 // and the bankroll balance.
 export async function settleBets(pronosticId: string, result: SettlementResult) {
+  let reglementsCombines: ReglementCombine[] = [];
+  const couverturesParPari = new Map<string, number | null>();
   const changedBets = await prisma.$transaction(async (tx) => {
     const bets = await tx.bankrollBet.findMany({
       where:   { pronosticId },
@@ -592,6 +538,7 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
 
     const now = new Date();
     const changes: Array<{
+      betId: string;
       previousResult: SettlementResult;
       userId: string;
       currency: string;
@@ -622,6 +569,7 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
       }
 
       changes.push({
+        betId:         bet.id,
         previousResult,
         userId:        bet.bankroll.user.id,
         currency:      bet.bankroll.currency ?? 'XOF',
@@ -631,8 +579,17 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
       });
     }
 
+    // Les combinés qui contiennent ce pronostic, et les couvertures de son
+    // inverse (27 novembre 2026) : même transaction, le solde reste juste.
+    reglementsCombines = await reglerSelectionsDuPronostic(tx, pronosticId, result);
+    for (const h of await reglerCouverturesDuPronostic(tx, pronosticId, result)) {
+      if (h.pariId) couverturesParPari.set(h.pariId, h.profit);
+    }
+
     return changes;
   });
+
+  notifierReglementsCombines(reglementsCombines);
 
   if (changedBets.length === 0 || result === null) return changedBets.length;
 
@@ -648,6 +605,27 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
 
   for (const bet of changedBets) {
     const corrected = bet.previousResult !== null;
+    if (couverturesParPari.has(bet.betId)) {
+      // La mise et sa couverture : le résultat qui compte est leur somme.
+      const net = (bet.profit ?? 0) + (couverturesParPari.get(bet.betId) ?? 0);
+      const d = nomDevise(bet.currency);
+      const signe = net > 0 ? '+' : net < 0 ? '-' : '';
+      const valeur = Math.abs(net).toLocaleString('fr-FR');
+      const valeurEn = Math.abs(net).toLocaleString('en-GB');
+      const passee = result === 'WIN';
+      notifSvc.sendToUser(bet.userId, {
+        title: result === 'PUSH' ? 'Mise couverte : remboursée' : `Mise couverte : ${signe}${valeur} ${d} au total`,
+        titleEn: result === 'PUSH' ? 'Hedged bet: refunded' : `Hedged bet: ${signe}${valeurEn} ${d} in total`,
+        body: result === 'PUSH'
+          ? `${matchStr} : ta mise et ta couverture sont remboursées.`
+          : `${matchStr} : ta sélection est ${passee ? 'passée' : 'perdue'}, ta couverture ${passee ? 'perdue' : 'passée'}. Résultat net : ${signe}${valeur} ${d}.`,
+        bodyEn: result === 'PUSH'
+          ? `${matchStr}: your bet and your hedge are refunded.`
+          : `${matchStr}: your selection ${passee ? 'won' : 'lost'}, your hedge ${passee ? 'lost' : 'won'}. Net result: ${signe}${valeurEn} ${d}.`,
+        data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
+      }).catch(() => {});
+      continue;
+    }
     if (result === 'WIN') {
       const gain = (bet.profit ?? 0).toLocaleString('fr-FR');
       const retour = bet.potentialGain.toLocaleString('fr-FR');
@@ -694,6 +672,12 @@ export interface PariAnnule { userId: string; montant: number; devise: string }
  * l'abonné peut valider la nouvelle sélection.
  */
 export async function annulerParisSelectionModifiee(tx: Tx, pronosticId: string): Promise<PariAnnule[]> {
+  // Les couvertures de ce pronostic d'abord (leur mise est rendue), avant que
+  // la suppression de la mise ne les emporte ; puis ses sélections dans des
+  // combinés, qui deviennent remboursées (27 novembre 2026). Pas de
+  // notification ici : on est dans la transaction de l'appelant.
+  await annulerCouverturesDuPronostic(tx, pronosticId);
+  await annulerSelectionsDuPronostic(tx, pronosticId);
   const paris = await tx.bankrollBet.findMany({
     where:   { pronosticId, result: null },
     include: { bankroll: { select: { userId: true, currency: true } } },

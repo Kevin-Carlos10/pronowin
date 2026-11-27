@@ -99,6 +99,8 @@ model UserBankroll {
   updatedAt      DateTime            @updatedAt @map("updated_at")
   bets           BankrollBet[]
   mouvements     BankrollMouvement[]
+  combines       BankrollCombine[]
+  couvertures    BankrollCouverture[]
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_bankrolls")
@@ -115,7 +117,7 @@ model BankrollMouvement {
   id         String       @id @default(uuid())
   bankrollId String       @map("bankroll_id")
   /// ouverture | reprise | budget | devise | mise | reglement |
-  /// correction_mise | reinitialisation
+  /// correction_mise | reinitialisation | annulation | combine | couverture
   type       String
   /// Variation du solde disponible, signée. Zéro pour un événement qui ne
   /// déplace rien (budget de référence modifié).
@@ -152,14 +154,112 @@ model BankrollBet {
   /// disait : sélection inverse, sa cote, la mise conseillée, le gain garanti.
   couvertureNotifieeLe DateTime? @map("couverture_notifiee_le")
   couverture      Json?
+  /// Combien d'alertes de couverture sont parties (27 novembre 2026) : la
+  /// première au seuil choisi, une seconde à 80 % du gain potentiel.
+  couvertureAlertes Int        @default(0) @map("couverture_alertes")
   createdAt       DateTime     @default(now()) @map("created_at")
   bankroll        UserBankroll @relation(fields: [bankrollId], references: [id], onDelete: Cascade)
   pronostic       Pronostic    @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
+  /// La mise sur l'inverse que l'abonné a enregistrée (« J'ai couvert »).
+  couvertureEnregistree BankrollCouverture?
 
   @@unique([bankrollId, pronosticId])
   @@index([pronosticId])
   @@index([result, createdAt])
   @@map("bankroll_bets")
+}
+
+/// Un coupon combiné (27 novembre 2026) : de 2 à 10 sélections, une seule
+/// mise, gagnant si toutes passent. Les sélections sont des pronostics
+/// PronoWin publiés, ou des sélections libres que l'abonné règle lui-même.
+///
+/// La mise suit le barème de la sélection la moins sûre (une sélection libre
+/// compte pour la note 1) : elle est calculée et verrouillée, comme une mise
+/// simple. Le classement ne compte pas les combinés.
+model BankrollCombine {
+  id                   String                     @id @default(uuid())
+  bankrollId           String                     @map("bankroll_id")
+  stakedAmount         Float                      @map("staked_amount")
+  suggestedAmount      Float                      @map("suggested_amount")
+  /// Le produit des cotes des sélections, à la pose.
+  oddsUsed             Float                      @map("odds_used")
+  potentialGain        Float                      @map("potential_gain")
+  /// La note qui a fixé la mise : la plus faible des sélections.
+  noteRetenue          Int                        @map("note_retenue")
+  result               String?
+  /// Ce que le règlement a rendu au solde : mise × produit des cotes gagnées
+  /// (une sélection remboursée compte pour 1), la mise sur un remboursé.
+  retour               Float?
+  profit               Float?
+  settledAt            DateTime?                  @map("settled_at")
+  couvertureAlertes    Int                        @default(0) @map("couverture_alertes")
+  couvertureNotifieeLe DateTime?                  @map("couverture_notifiee_le")
+  couverture           Json?
+  createdAt            DateTime                   @default(now()) @map("created_at")
+  bankroll             UserBankroll               @relation(fields: [bankrollId], references: [id], onDelete: Cascade)
+  selections           BankrollCombineSelection[]
+  couvertureEnregistree BankrollCouverture?
+
+  @@index([bankrollId, createdAt])
+  @@index([result])
+  @@map("bankroll_combines")
+}
+
+/// Une sélection d'un combiné.
+model BankrollCombineSelection {
+  id             String          @id @default(uuid())
+  combineId      String          @map("combine_id")
+  ordre          Int
+  /// Nul : sélection libre, hors PronoWin.
+  pronosticId    String?         @map("pronostic_id")
+  /// Sélection libre : le match et la sélection tels que l'abonné les a écrits.
+  libreMatch     String?         @map("libre_match")
+  libreSelection String?         @map("libre_selection")
+  cote           Float
+  /// La note du pronostic, 1 pour une sélection libre.
+  note           Int
+  result         String?
+  /// Le pronostic a été retiré ou sa sélection modifiée avant le coup
+  /// d'envoi : la sélection compte comme remboursée (cote 1).
+  annulee        Boolean         @default(false)
+  settledAt      DateTime?       @map("settled_at")
+  combine        BankrollCombine @relation(fields: [combineId], references: [id], onDelete: Cascade)
+  pronostic      Pronostic?      @relation(fields: [pronosticId], references: [id], onDelete: SetNull)
+
+  @@index([combineId])
+  @@index([pronosticId])
+  @@map("bankroll_combine_selections")
+}
+
+/// La mise sur l'inverse qu'un abonné a placée pour couvrir une mise simple
+/// ou la dernière sélection d'un combiné (« J'ai couvert », 27 novembre 2026).
+///
+/// Son résultat découle de celui de la sélection couverte : elle gagne quand
+/// la sélection perd, et elles sont remboursées ensemble.
+model BankrollCouverture {
+  id          String           @id @default(uuid())
+  bankrollId  String           @map("bankroll_id")
+  pariId      String?          @unique @map("pari_id")
+  combineId   String?          @unique @map("combine_id")
+  /// Le pronostic dont l'inverse est misé.
+  pronosticId String           @map("pronostic_id")
+  selectionFr String           @map("selection_fr")
+  selectionEn String           @map("selection_en")
+  /// gain_egal | mise_remboursee | libre
+  strategie   String
+  mise        Float
+  cote        Float
+  result      String?
+  profit      Float?
+  settledAt   DateTime?        @map("settled_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  bankroll    UserBankroll     @relation(fields: [bankrollId], references: [id], onDelete: Cascade)
+  pari        BankrollBet?     @relation(fields: [pariId], references: [id], onDelete: Cascade)
+  combine     BankrollCombine? @relation(fields: [combineId], references: [id], onDelete: Cascade)
+
+  @@index([pronosticId])
+  @@index([bankrollId])
+  @@map("bankroll_couvertures")
 }
 
 model UserFavoriteMatch {
@@ -537,6 +637,7 @@ model Pronostic {
   aiExplanation   String?         @map("ai_explanation")
   aiProbability   Float?          @map("ai_probability")
   bankrollBets    BankrollBet[]
+  selectionsCombine BankrollCombineSelection[]
   comments        Comment[]
   votes           PronosticVote[]
   analyst         Admin           @relation(fields: [analystId], references: [id])

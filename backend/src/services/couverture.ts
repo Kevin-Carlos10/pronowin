@@ -8,16 +8,23 @@
  *
  * - quelle est la sélection d'un pronostic, et son inverse exact — seulement
  *   pour les marchés à deux issues complémentaires : résultat ↔ double chance
- *   opposée, Plus ↔ Moins de N,5 buts, les deux équipes marquent oui ↔ non ;
- *   ailleurs (score exact, handicap, ligne entière…), rien : une couverture
- *   imparfaite promettrait un gain qu'elle ne tient pas ;
+ *   opposée, Plus ↔ Moins de N buts, les deux équipes marquent oui ↔ non,
+ *   « remboursé si match nul » d'une équipe ↔ de l'autre ; ailleurs (score
+ *   exact, handicap, quart de ligne…), rien : une couverture imparfaite
+ *   promettrait un gain qu'elle ne tient pas ;
  * - la cote de l'inverse dans les marchés reçus, au format avant-match
  *   (« Over 2.5 ») comme au format en direct (« Over » et la ligne à part) ;
  * - combien miser dessus, et ce qui est alors garanti.
  *
- * Mise de couverture = mise × cote ÷ cote inverse : les deux issues rapportent
- * alors la même chose. Le gain garanti est le plus petit des deux, une fois
- * la mise arrondie à l'unité de la devise.
+ * Deux façons de couvrir (27 novembre 2026) :
+ * - gain égal : mise × cote ÷ cote inverse — les deux issues rapportent la
+ *   même chose ;
+ * - mise remboursée : mise ÷ (cote inverse − 1) — si l'inverse passe, on
+ *   récupère sa mise ; si la sélection passe, on garde l'essentiel du gain.
+ *
+ * Sur une ligne entière (Plus de 2) ou un « remboursé si match nul », les deux
+ * mises peuvent être remboursées ensemble (2 buts tout juste, match nul) : ni
+ * gain ni perte. `remboursable` le signale, pour que l'écran le dise.
  */
 
 export type Issue = 'Home' | 'Draw' | 'Away';
@@ -27,7 +34,17 @@ export type Selection =
   | { marche: 'resultat'; issue: Issue }
   | { marche: 'double_chance'; paire: Paire }
   | { marche: 'buts'; plus: boolean; ligne: number }
-  | { marche: 'btts'; oui: boolean };
+  | { marche: 'btts'; oui: boolean }
+  /** Remboursé si match nul (« Home/Away » avant le match, « Draw No Bet » en direct). */
+  | { marche: 'nul_rembourse'; issue: 'Home' | 'Away' };
+
+export type Strategie = 'gain_egal' | 'mise_remboursee';
+export const STRATEGIES: readonly Strategie[] = ['gain_egal', 'mise_remboursee'];
+
+/** Les deux mises peuvent-elles être remboursées ensemble ? */
+export function remboursable(s: Selection): boolean {
+  return s.marche === 'nul_rembourse' || (s.marche === 'buts' && Number.isInteger(s.ligne));
+}
 
 /** Un marché, quelle que soit sa provenance (avant-match ou direct). */
 export interface MarcheCote {
@@ -37,7 +54,11 @@ export interface MarcheCote {
 
 // ─── La sélection d'un pronostic ─────────────────────────────────────────────
 
-const LIGNE_DEMI = (n: number) => Number.isFinite(n) && Math.abs(n * 2 - Math.round(n * 2)) < 1e-9 && Math.round(n * 2) % 2 === 1;
+/**
+ * Une ligne de buts couvrable : demi (2,5) ou entière (2). Pas un quart
+ * (2,25) : la mise y est coupée en deux, l'inverse n'est plus exact.
+ */
+const LIGNE_COUVRABLE = (n: number) => Number.isFinite(n) && n >= 0 && Math.abs(n * 2 - Math.round(n * 2)) < 1e-9;
 
 /**
  * La sélection d'un pronostic, d'après son marché tel que le panneau
@@ -60,10 +81,13 @@ export function selectionDuPronostic(p: {
       case 'Goals Over/Under': {
         const m = valeur.match(/^(Over|Under)\s+(\d+(?:\.\d+)?)$/);
         const ligne = m ? parseFloat(m[2]) : NaN;
-        return m && LIGNE_DEMI(ligne) ? { marche: 'buts', plus: m[1] === 'Over', ligne } : null;
+        return m && LIGNE_COUVRABLE(ligne) ? { marche: 'buts', plus: m[1] === 'Over', ligne } : null;
       }
       case 'Both Teams Score':
         return valeur === 'Yes' || valeur === 'No' ? { marche: 'btts', oui: valeur === 'Yes' } : null;
+      case 'Home/Away':
+      case 'Draw No Bet':
+        return valeur === 'Home' || valeur === 'Away' ? { marche: 'nul_rembourse', issue: valeur } : null;
       default:
         return null;
     }
@@ -92,6 +116,8 @@ export function selectionInverse(s: Selection): Selection {
       return { marche: 'buts', plus: !s.plus, ligne: s.ligne };
     case 'btts':
       return { marche: 'btts', oui: !s.oui };
+    case 'nul_rembourse':
+      return { marche: 'nul_rembourse', issue: s.issue === 'Home' ? 'Away' : 'Home' };
   }
 }
 
@@ -102,6 +128,7 @@ const NOMS: Record<Selection['marche'], string[]> = {
   double_chance: ['double chance'],
   buts:          ['goals over/under', 'over/under line', 'over/under', 'match goals', 'total goals'],
   btts:          ['both teams score', 'both teams to score'],
+  nul_rembourse: ['home/away', 'draw no bet'],
 };
 
 function issueDe(v: string): Issue | null {
@@ -125,6 +152,7 @@ function correspond(s: Selection, v: { valeur: string; ligne?: string }): boolea
     case 'resultat':      return issueDe(v.valeur) === s.issue;
     case 'double_chance': return paireDe(v.valeur) === s.paire;
     case 'btts':          return v.valeur.trim().toLowerCase() === (s.oui ? 'yes' : 'no');
+    case 'nul_rembourse': return issueDe(v.valeur) === s.issue;
     case 'buts': {
       // « Over 2.5 » (avant-match) ou « Over » et la ligne à part (direct).
       const m = v.valeur.trim().match(/^(over|under)\s*(\d+(?:\.\d+)?)?$/i);
@@ -157,22 +185,37 @@ export interface Couverture {
   gainPotentiel:  number;
   /** gainGaranti ÷ gainPotentiel. */
   part:           number;
+  /** Le résultat net des deux mises si la sélection passe… */
+  siSelection:    number;
+  /** … et si c'est l'inverse. */
+  siInverse:      number;
 }
 
 /**
- * [pas] : l'unité de la devise (1 pour le franc CFA, 0,01 pour l'euro). La
- * mise de couverture est arrondie au plus proche ; le gain garanti tient
- * compte de cet arrondi.
+ * [pas] : l'unité de la devise (1 pour le franc CFA, 0,01 pour l'euro). Le
+ * gain garanti tient compte de l'arrondi de la mise de couverture : au plus
+ * proche pour le gain égal, au-dessus pour la mise remboursée (qui ne doit
+ * jamais laisser une perte).
+ *
+ * Le seuil de l'alerte se lit toujours sur le gain égal : c'est lui qui dit
+ * ce que la couverture garantit au mieux.
  */
-export function calculerCouverture(mise: number, cote: number, coteInverse: number, pas = 1): Couverture | null {
+export function calculerCouverture(
+  mise: number, cote: number, coteInverse: number, pas = 1, strategie: Strategie = 'gain_egal',
+): Couverture | null {
   if (!(mise > 0 && cote > 1 && coteInverse > 1 && pas > 0)) return null;
-  const miseCouverture = Math.round((mise * cote / coteInverse) / pas) * pas;
-  const siSelection = mise * cote - mise - miseCouverture;
-  const siInverse = miseCouverture * coteInverse - mise - miseCouverture;
+  const brut = strategie === 'mise_remboursee' ? mise / (coteInverse - 1) : mise * cote / coteInverse;
+  const miseCouverture = (strategie === 'mise_remboursee' ? Math.ceil(brut / pas - 1e-9) : Math.round(brut / pas)) * pas;
   const arrondir = (n: number) => Math.round(n / pas) * pas;
-  const gainGaranti = arrondir(Math.min(siSelection, siInverse));
+  const siSelection = arrondir(mise * cote - mise - miseCouverture);
+  const siInverse = arrondir(miseCouverture * coteInverse - mise - miseCouverture);
+  const gainGaranti = Math.min(siSelection, siInverse);
   const gainPotentiel = arrondir(mise * (cote - 1));
-  return { miseCouverture: arrondir(miseCouverture), gainGaranti, gainPotentiel, part: gainPotentiel > 0 ? gainGaranti / gainPotentiel : 0 };
+  return {
+    miseCouverture: arrondir(miseCouverture), gainGaranti, gainPotentiel,
+    part: gainPotentiel > 0 ? gainGaranti / gainPotentiel : 0,
+    siSelection, siInverse,
+  };
 }
 
 /** Les seuils proposés dans les réglages, en pourcentage du gain potentiel. */
@@ -211,5 +254,36 @@ export function libelleSelection(s: Selection, domicile: string, exterieur: stri
     case 'btts':
       return fr ? `Les deux équipes marquent : ${s.oui ? 'oui' : 'non'}`
         : `Both teams to score: ${s.oui ? 'yes' : 'no'}`;
+    case 'nul_rembourse': {
+      const equipe = s.issue === 'Home' ? domicile : exterieur;
+      return fr ? `${equipe}, remboursé si match nul` : `${equipe}, draw no bet`;
+    }
   }
+}
+
+/**
+ * Quand les deux mises sont remboursées ensemble, en une phrase ; nul pour
+ * une sélection qui ne l'est jamais.
+ */
+export function noteRemboursement(s: Selection, langue: 'fr' | 'en'): string | null {
+  const fr = langue === 'fr';
+  if (s.marche === 'nul_rembourse') {
+    return fr ? 'Si le match finit nul, les deux mises sont remboursées : ni gain ni perte.'
+      : 'If the match ends in a draw, both stakes are refunded: no gain, no loss.';
+  }
+  if (s.marche === 'buts' && Number.isInteger(s.ligne)) {
+    const n = s.ligne;
+    return fr ? `S'il y a exactement ${n} but${n > 1 ? 's' : ''}, les deux mises sont remboursées : ni gain ni perte.`
+      : `If there are exactly ${n} goal${n === 1 ? '' : 's'}, both stakes are refunded: no gain, no loss.`;
+  }
+  return null;
+}
+
+/**
+ * Le résultat de la mise sur l'inverse, d'après celui de la sélection
+ * couverte : l'une passe exactement quand l'autre perd, et elles sont
+ * remboursées ensemble.
+ */
+export function resultatInverse(r: 'WIN' | 'LOSS' | 'PUSH' | null): 'WIN' | 'LOSS' | 'PUSH' | null {
+  return r === 'WIN' ? 'LOSS' : r === 'LOSS' ? 'WIN' : r;
 }

@@ -267,3 +267,16 @@ describe('_resolvePronosticResult — aiguillage', () => {
       .toBeNull();
   });
 });
+
+describe('remboursé si match nul (27 novembre 2026)', () => {
+  const score = (home: number, away: number) => ({ home, away });
+  it('gagne si l’équipe gagne, remboursé sur un nul, perdu sinon — sous ses deux noms', () => {
+    for (const nom of ['Home/Away', 'Draw No Bet']) {
+      expect(_computeCustomMarketResult(nom, 'Home', score(2, 1), null)).toBe('WIN');
+      expect(_computeCustomMarketResult(nom, 'Home', score(1, 1), null)).toBe('PUSH');
+      expect(_computeCustomMarketResult(nom, 'Home', score(0, 1), null)).toBe('LOSS');
+      expect(_computeCustomMarketResult(nom, 'Away', score(0, 1), null)).toBe('WIN');
+      expect(_computeCustomMarketResult(nom, 'Draw', score(0, 0), null)).toBeNull();
+    }
+  });
+});
