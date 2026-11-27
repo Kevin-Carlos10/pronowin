@@ -2,6 +2,7 @@ import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/utils/resume_paris.dart';
+import '../../domain/historique.dart';
 import '../../../pronostics/domain/entities/match_entity.dart' show MatchEntity;
 import 'package:pronowin/core/utils/noms_equipes.dart';
 
@@ -117,13 +118,14 @@ class BankrollCombine {
   final String? result;
   final double? profit;
   final DateTime createdAt;
+  final DateTime? settledAt;
   final List<SelectionCombine> selections;
   final CouvertureEnregistree? couvertureEnregistree;
   final String currency;
 
   const BankrollCombine({
     required this.id, required this.stakedAmount, required this.oddsUsed, required this.potentialGain,
-    this.noteRetenue = 1, this.result, this.profit, required this.createdAt, required this.selections,
+    this.noteRetenue = 1, this.result, this.profit, required this.createdAt, this.settledAt, required this.selections,
     this.couvertureEnregistree, required this.currency,
   });
 
@@ -147,6 +149,7 @@ class BankrollCombine {
     result:        j['result'] as String?,
     profit:        (j['profit'] as num?)?.toDouble(),
     createdAt:     DateTime.tryParse(j['created_at'] as String? ?? '')?.toLocal() ?? DateTime.now(),
+    settledAt:     DateTime.tryParse(j['settled_at'] as String? ?? '')?.toLocal(),
     selections:    ((j['selections'] as List?) ?? const [])
         .map((l) => SelectionCombine.fromJson((l as Map).cast<String, dynamic>())).toList(),
     couvertureEnregistree: CouvertureEnregistree.depuis(j['couverture_enregistree']),
@@ -300,6 +303,13 @@ class BankrollData {
   /// « 50 des 128 » au lieu de laisser croire qu'on les montre tous.
   final int parisAffiches;
 
+  /// La courbe du résultat net et la semaine, calculées par le serveur sur
+  /// tout l'historique, combinés et couvertures compris (27 novembre 2026).
+  /// `null` face à un serveur qui ne les envoie pas encore : voir [courbe] et
+  /// [semaine].
+  final CourbeResultats? courbeServeur;
+  final BilanSemaine? semaineServeur;
+
   const BankrollData({
     required this.id,
     required this.totalBudget,
@@ -309,6 +319,8 @@ class BankrollData {
     this.combines = const [],
     this.resume,
     this.parisAffiches = 0,
+    this.courbeServeur,
+    this.semaineServeur,
   });
 
   factory BankrollData.fromJson(Map<String, dynamic> j) => BankrollData(
@@ -327,7 +339,31 @@ class BankrollData {
     combines: ((j['combines'] as List?) ?? const [])
         .map((c) => BankrollCombine.fromJson((c as Map).cast<String, dynamic>(), currency: j['currency'] as String))
         .toList(),
+    courbeServeur: j['courbe'] is Map
+        ? CourbeResultats.depuisApi((j['courbe'] as Map).cast<String, dynamic>())
+        : null,
+    semaineServeur: j['semaine'] is Map
+        ? BilanSemaine.depuisApi((j['semaine'] as Map).cast<String, dynamic>())
+        : null,
   );
+
+  /// Les mises réglées que l'écran a reçues : le repli, quand le serveur
+  /// n'envoie pas la courbe.
+  List<ReglementLocal> get _reglementsLocaux => [
+    for (final b in bets)
+      if (b.result != null && b.resultatNet != null)
+        ReglementLocal(le: b.settledAt ?? b.createdAt, net: b.resultatNet!, result: b.result!),
+    for (final c in combines)
+      if (c.result != null && c.resultatNet != null)
+        ReglementLocal(le: c.settledAt ?? c.createdAt, net: c.resultatNet!, result: c.result!, combine: true),
+  ];
+
+  /// Le résultat net cumulé, mise après mise.
+  CourbeResultats get courbe => courbeServeur ?? CourbeResultats.locale(_reglementsLocaux);
+
+  /// Les sept derniers jours, d'après la date du règlement.
+  BilanSemaine semaine(DateTime maintenant) =>
+      semaineServeur ?? BilanSemaine.locale(_reglementsLocaux, maintenant);
 
   /// L'historique montré est-il partiel ?
   bool get historiqueTronque =>

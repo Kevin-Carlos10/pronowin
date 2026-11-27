@@ -242,11 +242,11 @@ class _BankrollView extends StatelessWidget {
           const SizedBox(height: 14),
 
           // ── Graphique évolution ──────────────────────────────────────────
-          if (settled.length >= 2)
+          if (bankroll.courbe.reglees >= 2)
             _BalanceChart(bankroll: bankroll)
               .animate(delay: 60.ms).fadeIn(duration: 400.ms),
 
-          if (settled.length >= 2) const SizedBox(height: 14),
+          if (bankroll.courbe.reglees >= 2) const SizedBox(height: 14),
 
           // ── Résumé hebdomadaire ──────────────────────────────────────────
           _WeeklySummary(bankroll: bankroll)
@@ -401,27 +401,26 @@ class _BalanceChart extends StatelessWidget {
     //     l'ancien budget comme si rien ne s'était passé ;
     //   * elle ne voyait que les paris chargés, soit cinquante au plus.
     //
-    // Une vraie courbe de solde demanderait un journal des mouvements, qui
-    // n'existe pas — et qu'on ne peut pas reconstituer pour le passé, faute
-    // d'avoir enregistré les réinitialisations. Elle montre donc ce qu'elle
-    // sait vraiment : le **résultat net cumulé** sur les paris réglés qu'elle
-    // a, en partant de zéro. Le titre et le sous-titre le disent.
-    final settled = bankroll.bets
-        .where((b) => b.result != null && b.profit != null)
-        .toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-    double running = 0;
-    final spots = <FlSpot>[const FlSpot(0, 0)];
-    for (var i = 0; i < settled.length; i++) {
-      running += settled[i].profit!;
-      spots.add(FlSpot((i + 1).toDouble(), running));
+    // Elle montre donc le **résultat net cumulé**, en partant de zéro. Le
+    // titre et le sous-titre le disent.
+    //
+    // Elle se calculait sur les cinquante dernières mises simples reçues, dans
+    // l'ordre où elles avaient été posées, sans les combinés ni les
+    // couvertures : depuis la 1.0.42, elle ne finissait plus sur le résultat
+    // net affiché juste au-dessus. Le serveur l'envoie désormais, sur tout
+    // l'historique et dans l'ordre des règlements (27 novembre 2026).
+    final courbe = bankroll.courbe;
+    final spots = <FlSpot>[FlSpot(0, courbe.depart)];
+    for (var i = 0; i < courbe.points.length; i++) {
+      spots.add(FlSpot((i + 1).toDouble(), courbe.points[i].cumul));
     }
+    final running = courbe.fin;
 
     // Une marge relative s'effondrait autour de zéro : `0 × 1.05` vaut 0, et
-    // la courbe touchait alors le bord du cadre.
-    final basse = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
-    final haute = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    // la courbe touchait alors le bord du cadre. Zéro reste dans le cadre :
+    // la ligne de départ doit se voir.
+    final basse = spots.map((s) => s.y).fold<double>(0, (a, b) => a < b ? a : b);
+    final haute = spots.map((s) => s.y).fold<double>(0, (a, b) => a > b ? a : b);
     final marge = ((haute - basse).abs() * 0.1).clamp(1.0, double.infinity);
     final minY = basse - marge;
     final maxY = haute + marge;
@@ -445,14 +444,19 @@ class _BalanceChart extends StatelessWidget {
             key: const Key('bankroll-titre-courbe'),
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
           const SizedBox(width: 8),
-          Text(tr(context, "{arg0} paris réglés", [settled.length]),
+          Text(tr(context, "{arg0} mises réglées", [courbe.reglees]),
+            key: const Key('bankroll-courbe-reglees'),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
         const SizedBox(height: 2),
         // Sans cette ligne, un utilisateur ayant réinitialisé sa bankroll
         // pouvait lire cette courbe comme l'histoire de son solde.
-        Text(tr(context, "Cumul des gains et pertes des paris tranchés, hors mises en cours"),
+        Text(tr(context, "Cumul des gains et pertes des paris, combinés et couvertures tranchés, hors mises en cours"),
           style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
+        if (courbe.tronquee)
+          Text(tr(context, "Les {arg0} dernières mises sur {arg1}", [courbe.points.length, courbe.reglees]),
+            key: const Key('bankroll-courbe-tronquee'),
+            style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
         const SizedBox(height: 14),
         SizedBox(
           height: 110,
@@ -460,6 +464,8 @@ class _BalanceChart extends StatelessWidget {
             LineChartData(
               minY: minY,
               maxY: maxY,
+              // Rien ne se dessine hors du cadre.
+              clipData: const FlClipData.all(),
               gridData: FlGridData(
                 show: true,
                 drawVerticalLine: false,
@@ -521,10 +527,14 @@ class _BalanceChart extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Ligne de référence (budget initial)
+                // La ligne du zéro, que la légende nomme « Point de départ ».
+                //
+                // Elle se traçait à hauteur du budget, vestige de l'ancienne
+                // courbe du solde : sur un cumul qui part de zéro, elle sortait
+                // du cadre et se dessinait par-dessus la carte voisine.
                 LineChartBarData(
-                  spots: [FlSpot(0, bankroll.totalBudget),
-                          FlSpot((settled.length).toDouble(), bankroll.totalBudget)],
+                  spots: [const FlSpot(0, 0),
+                          FlSpot(courbe.points.length.toDouble(), 0)],
                   isCurved: false,
                   color: context.cl.textM.withValues(alpha: 0.3),
                   barWidth: 1,
@@ -584,17 +594,19 @@ class _WeeklySummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now     = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-    final weekly  = bankroll.bets
-        .where((b) => b.createdAt.isAfter(weekAgo) && b.result != null)
-        .toList();
+    // Les sept derniers jours d'après la date du **règlement**, combinés et
+    // couvertures compris, sur tout l'historique (27 novembre 2026).
+    //
+    // L'écran retenait les paris posés dans la semaine, parmi les cinquante
+    // reçus, sans les combinés ni les couvertures : un pari posé il y a dix
+    // jours et gagné hier n'y entrait pas, et une mise couverte y comptait sa
+    // perte sans le gain de sa couverture.
+    final semaine = bankroll.semaine(DateTime.now());
+    if (semaine.vide) return const SizedBox.shrink();
 
-    if (weekly.isEmpty) return const SizedBox.shrink();
-
-    final wins     = weekly.where((b) => b.result == 'WIN').length;
-    final decisive = weekly.where((b) => b.result != 'PUSH').length;
-    final profit   = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
+    final wins     = semaine.gagnes;
+    final decisive = semaine.gagnes + semaine.perdus;
+    final profit   = semaine.profit;
     final isGain   = profit >= 0;
     // Même règle que le bandeau du haut : le taux passe par `BilanParis`.
     //
@@ -604,9 +616,9 @@ class _WeeklySummary extends StatelessWidget {
     // jours, l'échantillon est presque toujours sous le seuil : c'est
     // justement là que le pourcentage trompe le plus.
     final bilanSemaine = BilanParis(
-      suivis:   weekly.length,
+      suivis:   semaine.paris,
       gagnes:   wins,
-      perdus:   weekly.where((b) => b.result == 'LOSS').length,
+      perdus:   semaine.perdus,
       tauxBrut: decisive > 0 ? wins / decisive * 100 : 0.0,
       serie:    0,
     );
@@ -634,13 +646,23 @@ class _WeeklySummary extends StatelessWidget {
           // Sans taux affichable, on s'en tient aux comptes bruts : ils
           // informent sans prétendre à une mesure. Les pluriels suivent le
           // nombre — « 1 paris · 1 gagnés » se lisait mal.
-          Text(
-            tr(context, "Paris : {arg0} · Gagnés : {arg1}{arg2}", [weekly.length, wins, taux == null ? "" : tr(context, " · {arg0}% de réussite", [taux.toStringAsFixed(0)])]),
-            style: TextStyle(color: context.cl.textM, fontSize: 11)),
+          if (semaine.paris > 0)
+            Text(
+              tr(context, "Paris : {arg0} · Gagnés : {arg1}{arg2}", [semaine.paris, wins, taux == null ? "" : tr(context, " · {arg0}% de réussite", [taux.toStringAsFixed(0)])]),
+              key: const Key('semaine-paris'),
+              style: TextStyle(color: context.cl.textM, fontSize: 11)),
+          // Un combiné n'entre pas dans le taux de réussite, qui juge les
+          // sélections simples : il a sa ligne.
+          if (semaine.combines > 0)
+            Text(
+              tr(context, "Combinés : {arg0} · Gagnés : {arg1}", [semaine.combines, semaine.combinesGagnes]),
+              key: const Key('semaine-combines'),
+              style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(
             '${isGain ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
+            key: const Key('semaine-profit'),
             style: TextStyle(
               color: isGain ? context.cl.success : context.cl.error,
               fontSize: 13, fontWeight: FontWeight.w700)),

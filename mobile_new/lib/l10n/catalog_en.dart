@@ -2148,4 +2148,8 @@ const englishMessages = <String, String>{
   "{arg0} à jouer": "{arg0} to play",
   "Couvert": "Hedged",
   "Couverte : {arg0} sur « {arg1} »": "Hedged: {arg0} on \"{arg1}\"",
+  "{arg0} mises réglées": "{arg0} settled stakes",
+  "Cumul des gains et pertes des paris, combinés et couvertures tranchés, hors mises en cours": "Total profit and loss from settled bets, accumulators and hedges, excluding pending stakes",
+  "Les {arg0} dernières mises sur {arg1}": "The last {arg0} stakes out of {arg1}",
+  "Combinés : {arg0} · Gagnés : {arg1}": "Accumulators: {arg0} · Wins: {arg1}",
 };
