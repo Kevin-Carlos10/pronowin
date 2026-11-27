@@ -13,6 +13,7 @@ import {
   annulerSelectionsDuPronostic, notifierReglementsCombines, reglerSelectionsDuPronostic, type ReglementCombine,
 } from './combines.service';
 import { annulerCouverturesDuPronostic, reglerCouverturesDuPronostic } from './couvertures_enregistrees.service';
+import { resultatsRegles, totaux } from './bankroll_historique';
 
 const notifSvc = new NotificationService();
 
@@ -848,13 +849,14 @@ export async function listBankrollsStats() {
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
 export async function getBankrollStats(userId: string) {
-  const bankroll = await prisma.userBankroll.findUnique({
-    where:   { userId },
-    include: { bets: { where: { result: { not: null } } } },
-  });
+  const bankroll = await prisma.userBankroll.findUnique({ where: { userId } });
   if (!bankroll) return null;
 
-  const settled = bankroll.bets;
+  // Le gain net et la base du rendement comptent aussi les combinés et les
+  // couvertures enregistrées (27 novembre 2026) : ce sont des mises sorties
+  // du solde. Le taux de réussite, lui, juge les sélections simples.
+  const regles  = await resultatsRegles(bankroll.id);
+  const settled = regles.filter(r => r.genre === 'pari');
   // Les remboursés (PUSH) ne sont ni des victoires ni des défaites — on les
   // exclut du taux de réussite et de la base de calcul du ROI (la mise a été
   // rendue, elle n'a jamais été réellement "à risque").
@@ -862,8 +864,7 @@ export async function getBankrollStats(userId: string) {
   const wins     = decisive.filter(b => b.result === 'WIN').length;
   const losses   = decisive.filter(b => b.result === 'LOSS').length;
   const pushes   = settled.length - decisive.length;
-  const totalProfit = settled.reduce((sum, b) => sum + (b.profit ?? 0), 0);
-  const totalStaked = decisive.reduce((sum, b) => sum + b.stakedAmount, 0);
+  const { profit: totalProfit, mise: totalStaked } = totaux(regles);
   const roi = totalStaked > 0 ? (totalProfit / totalStaked) * 100 : 0;
 
   return {
@@ -871,6 +872,7 @@ export async function getBankrollStats(userId: string) {
     currentBalance: bankroll.currentBalance,
     currency:       bankroll.currency,
     totalBets:      settled.length,
+    combines:       regles.length - settled.length,
     wins,
     losses,
     pushes,

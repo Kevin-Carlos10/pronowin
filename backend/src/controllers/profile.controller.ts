@@ -8,6 +8,7 @@ import { SEUILS_COUVERTURE } from '../services/couverture';
 import { estMajeur, AGE_MINIMUM } from '../utils/age';
 import { repondreErreur } from '../utils/erreurs';
 import { revoquer } from '../services/apple_auth';
+import { historiqueSolde, resultatsRegles, totaux } from '../services/bankroll_historique';
 
 /**
  * PATCH /profile/notification-prefs
@@ -338,22 +339,22 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
 /** GET /profile/stats */
 export const getStats = async (req: AuthRequest, res: Response) => {
   try {
-    const [bets, txCompleted, referrals, bankroll] = await Promise.all([
-      prisma.bankrollBet.findMany({
-        where:   { bankroll: { userId: req.userId! } },
+    const bankroll = await prisma.userBankroll.findUnique({ where: { userId: req.userId! } });
+    const [bets, txCompleted, referrals, regles, bankrollHistory] = await Promise.all([
+      bankroll ? prisma.bankrollBet.findMany({
+        where:   { bankrollId: bankroll.id },
         select:  {
           result: true, createdAt: true, settledAt: true,
           stakedAmount: true, oddsUsed: true, potentialGain: true, profit: true,
           pronostic: { select: { match: { select: { league: true } } } },
         },
         orderBy: { createdAt: 'desc' },
-      }),
+      }) : Promise.resolve([]),
       prisma.transaction.count({ where: { userId: req.userId!, status: 'completed' } }),
       prisma.referral.count({ where: { referrerId: req.userId! } }),
-      prisma.userBankroll.findFirst({
-        where:   { userId: req.userId! },
-        select:  { currentBalance: true },
-      }),
+      bankroll ? resultatsRegles(bankroll.id) : Promise.resolve([]),
+      // Le solde de chaque jour, lu dans le journal des mouvements.
+      bankroll ? historiqueSolde(bankroll.id, bankroll.currency) : Promise.resolve([]),
     ]);
 
     const settled  = bets.filter(b => b.result !== null);
@@ -377,9 +378,13 @@ export const getStats = async (req: AuthRequest, res: Response) => {
       else if (b.result === 'LOSS') cur = 0;
     }
 
-    // ROI & profit net — la mise remboursée (PUSH) n'a jamais été réellement à risque
-    const totalStaked = settled.filter(b => b.result !== 'PUSH').reduce((s, b) => s + b.stakedAmount, 0);
-    const totalProfit = settled.reduce((s, b) => s + (b.profit ?? 0), 0);
+    // ROI & profit net — la mise remboursée (PUSH) n'a jamais été réellement à risque.
+    //
+    // Les combinés et les couvertures enregistrées comptent aussi (27 novembre
+    // 2026) : ce sont des mises sorties du solde, et le profit net doit
+    // valoir celui de la page Bankroll. Le taux de réussite, les séries et la
+    // répartition par compétition jugent les sélections simples.
+    const { profit: totalProfit, mise: totalStaked } = totaux(regles);
     const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 100 * 10) / 10 : 0;
 
     // Meilleure cote gagnée
@@ -387,27 +392,11 @@ export const getStats = async (req: AuthRequest, res: Response) => {
       ? Math.max(...wins.map(b => b.oddsUsed))
       : 0;
 
-    // Évolution bankroll sur 30 jours (1 point par jour)
-    const now   = new Date();
-    const from  = new Date(now.getTime() - 30 * 86400000);
-    const bankrollHistory: { date: string; balance: number }[] = [];
-    let runningBalance = (bankroll?.currentBalance ?? 0) - totalProfit;
-
-    // Regrouper les bets réglés par jour
-    const profitByDay = new Map<string, number>();
-    for (const b of settled) {
-      const d = b.settledAt ?? b.createdAt;
-      if (d < from) continue;
-      const key = d.toISOString().slice(0, 10);
-      profitByDay.set(key, (profitByDay.get(key) ?? 0) + (b.profit ?? 0));
-    }
-
-    for (let i = 30; i >= 0; i--) {
-      const d   = new Date(now.getTime() - i * 86400000);
-      const key = d.toISOString().slice(0, 10);
-      runningBalance += profitByDay.get(key) ?? 0;
-      bankrollHistory.push({ date: key, balance: Math.round(runningBalance) });
-    }
+    // L'évolution sur 30 jours partait du solde actuel moins les gains et
+    // pertes des paris réglés, et ignorait les mises en cours, les
+    // réinitialisations, les changements de budget, les combinés et les
+    // couvertures. Elle vient désormais du journal des mouvements
+    // (`historiqueSolde`, 27 novembre 2026).
 
     // Répartition par ligue (top 5)
     const leagueMap = new Map<string, { total: number; wins: number }>();

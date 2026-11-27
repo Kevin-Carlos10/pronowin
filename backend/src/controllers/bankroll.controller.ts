@@ -9,6 +9,7 @@ import { couvertureCombinePourAbonne, couverturePourAbonne } from '../services/c
 import * as combines from '../services/combines.service';
 import { couverturePourApi, enregistrerCouverture as enregistrer } from '../services/couvertures_enregistrees.service';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
+import { bilanSemaine, courbeResultats, resultatsRegles } from '../services/bankroll_historique';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
   try {
@@ -23,6 +24,9 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
     const resume = await svc.resumeParis(bankroll.id);
     const plafond = await svc.plafondExposition();
     const listeCombines = await combines.lireCombines(bankroll.id);
+    // La courbe et la semaine aussi, sur tout l'historique, combinés et
+    // couvertures compris (27 novembre 2026).
+    const regles = await resultatsRegles(bankroll.id);
 
     res.json({
       id:             bankroll.id,
@@ -73,6 +77,9 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
       })),
       // Les coupons combinés (27 novembre 2026), du plus récent au plus ancien.
       combines: listeCombines.map(combinePourApi),
+      // Le résultat net cumulé, mise après mise, et les sept derniers jours.
+      courbe:  courbeResultats(regles),
+      semaine: bilanSemaine(regles),
     });
   } catch (e: any) { repondreErreur(res, e); }
 };
