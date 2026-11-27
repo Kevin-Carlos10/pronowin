@@ -179,11 +179,78 @@ interface Cible {
   pronostic: PronosticSurveille;
 }
 
-/** Le contexte d'une lecture en direct : « 63e minute, 1-0 ». */
-function contexteDirect(match: MatchSurveille, minute: number | null | undefined, langue: 'fr' | 'en'): string {
-  if (minute == null) return '';
+/**
+ * Le moment de la lecture : « 63e minute, 1-0 » en direct, « avant le match »
+ * sinon.
+ */
+function contexteLecture(
+  match: MatchSurveille, source: 'direct' | 'avant_match', minute: number | null | undefined, langue: 'fr' | 'en',
+): string {
+  if (source === 'avant_match') return langue === 'fr' ? ', avant le match' : ', before kick-off';
+  if (minute == null) return langue === 'fr' ? ', en direct' : ', live';
   const score = match.homeScore != null && match.awayScore != null ? `, ${match.homeScore}-${match.awayScore}` : '';
   return langue === 'fr' ? `, ${minute}e minute${score}` : `, ${minute}'${score}`;
+}
+
+/**
+ * Quand les deux mises sont remboursées ensemble, en quelques mots ; nul pour
+ * une sélection qui ne l'est jamais. La notification ne doit pas promettre un
+ * gain « quel que soit le résultat » quand un résultat le rend nul.
+ */
+function casRemboursement(s: Selection, langue: 'fr' | 'en'): string | null {
+  if (!remboursable(s)) return null;
+  if (s.marche === 'nul_rembourse') return langue === 'fr' ? 'si le match finit nul' : 'if the match ends in a draw';
+  const n = (s as { ligne: number }).ligne;
+  return langue === 'fr'
+    ? `s'il y a exactement ${n} but${n > 1 ? 's' : ''}`
+    : `if there are exactly ${n} goal${n === 1 ? '' : 's'}`;
+}
+
+/**
+ * Le texte d'une alerte. L'action vient en premier — combien miser, sur
+ * quoi, à quelle cote — : sur l'écran verrouillé, seule la première ligne se
+ * lit. Puis la mise concernée et le moment, l'autre façon de couvrir, et le
+ * rappel de vérifier la cote.
+ */
+export function texteAlerte(p: {
+  combine: boolean; seconde: boolean; duel: string; contexte: string;
+  selection: string; inverse: string; cote: string; devise: string;
+  egal: Couverture; rembourse: Couverture; remboursement: string | null; langue: 'fr' | 'en';
+}): { title: string; body: string } {
+  const fr = p.langue === 'fr';
+  const m = (n: number) => (fr ? montant(n) : montantEn(n));
+  const d = p.devise;
+  const g = p.egal.gainGaranti;
+  if (fr) {
+    const gain = p.remboursement
+      ? `+${m(g)} ${d}, ou les deux mises remboursées ${p.remboursement}`
+      : `+${m(g)} ${d} quel que soit le résultat`;
+    const titreGain = p.remboursement ? `+${m(g)} ${d}, sans perte possible` : `+${m(g)} ${d} garantis`;
+    return {
+      title: p.seconde ? `Couverture encore meilleure : ${titreGain}`
+        : `Couvre ${p.combine ? 'ton combiné' : 'ta mise'} : ${titreGain}`,
+      body: `Mise ${m(p.egal.miseCouverture)} ${d} sur « ${p.inverse} » à ${p.cote} : ${gain}. `
+        + (p.combine
+          ? `Ton combiné n’attend plus que « ${p.selection} » (${p.duel}${p.contexte}). `
+          : `Ta mise : « ${p.selection} », ${p.duel}${p.contexte}. `)
+        + `Ou ${m(p.rembourse.miseCouverture)} ${d} pour récupérer ta mise et garder +${m(p.rembourse.siSelection)} ${d} `
+        + `si ${p.combine ? 'ton combiné' : 'ta sélection'} passe. Vérifie la cote proposée avant de miser.`,
+    };
+  }
+  const gain = p.remboursement
+    ? `+${m(g)} ${d}, or both stakes refunded ${p.remboursement}`
+    : `+${m(g)} ${d} whatever the result`;
+  const titreGain = p.remboursement ? `+${m(g)} ${d}, no possible loss` : `+${m(g)} ${d} guaranteed`;
+  return {
+    title: p.seconde ? `Even better hedge: ${titreGain}`
+      : `Hedge your ${p.combine ? 'accumulator' : 'bet'}: ${titreGain}`,
+    body: `Stake ${m(p.egal.miseCouverture)} ${d} on "${p.inverse}" at ${p.cote}: ${gain}. `
+      + (p.combine
+        ? `Your accumulator only needs "${p.selection}" (${p.duel}${p.contexte}). `
+        : `Your bet: "${p.selection}", ${p.duel}${p.contexte}. `)
+      + `Or ${m(p.rembourse.miseCouverture)} ${d} to get your stake back and keep +${m(p.rembourse.siSelection)} ${d} `
+      + `if your ${p.combine ? 'accumulator' : 'selection'} wins. Check the odds offered before staking.`,
+  };
 }
 
 /**
@@ -303,26 +370,22 @@ export async function surveillerCouvertures(
         : await prisma.bankrollBet.updateMany({ where: { id: c.id, couvertureAlertes: c.alertes }, data: donnees });
       if (marque.count === 0) continue;
 
-      const ctxFr = lecture.source === 'direct' ? contexteDirect(match, lecture.minute, 'fr') : '';
-      const ctxEn = lecture.source === 'direct' ? contexteDirect(match, lecture.minute, 'en') : '';
-      const objetFr = combine ? `il ne manque que « ${selectionFr} » à ton combiné. ` : '';
-      const objetEn = combine ? `only "${selectionEn}" is left in your accumulator. ` : '';
+      const commun = { combine, seconde, duel, cote, devise: d, egal: g, rembourse: r };
+      const fr = texteAlerte({
+        ...commun, langue: 'fr', selection: selectionFr, inverse: inverseFr,
+        contexte: contexteLecture(match, lecture.source, lecture.minute, 'fr'),
+        remboursement: casRemboursement(calcul.selection, 'fr'),
+      });
+      const en = texteAlerte({
+        ...commun, langue: 'en', selection: selectionEn, inverse: inverseEn,
+        contexte: contexteLecture(match, lecture.source, lecture.minute, 'en'),
+        remboursement: casRemboursement(calcul.selection, 'en'),
+      });
       await notifSvc.sendToUser(c.userId, {
-        title: seconde
-          ? `Couverture encore meilleure : +${montant(g.gainGaranti)} ${d} garantis`
-          : `Couvre ${combine ? 'ton combiné' : 'ta mise'} : +${montant(g.gainGaranti)} ${d} garantis`,
-        titleEn: seconde
-          ? `Even better hedge: +${montantEn(g.gainGaranti)} ${d} guaranteed`
-          : `Hedge your ${combine ? 'accumulator' : 'bet'}: +${montantEn(g.gainGaranti)} ${d} guaranteed`,
-        body: `${duel}${ctxFr} — ${objetFr}« ${inverseFr} » est à ${cote}. Mise ${montant(g.miseCouverture)} ${d} dessus : `
-            + `tu gagnes au moins ${montant(g.gainGaranti)} ${d}, quel que soit le résultat. `
-            + `Ou ${montant(r.miseCouverture)} ${d} pour récupérer ta mise et garder +${montant(r.siSelection)} ${d} si ta sélection passe. `
-            + 'Vérifie la cote proposée avant de miser.',
-        bodyEn: `${duel}${ctxEn} — ${objetEn}"${inverseEn}" is at ${cote}. Stake ${montantEn(g.miseCouverture)} ${d} on it: `
-              + `you win at least ${montantEn(g.gainGaranti)} ${d}, whatever the result. `
-              + `Or ${montantEn(r.miseCouverture)} ${d} to get your stake back and keep +${montantEn(r.siSelection)} ${d} if your selection wins. `
-              + 'Check the odds offered before staking.',
+        title: fr.title, titleEn: en.title, body: fr.body, bodyEn: en.body,
         data: { type: 'couverture', deep_link: combine ? `/bankroll/combine/${c.id}` : `/pronostics/${c.pronostic.id}` },
+        // La seconde alerte d'une mise remplace la première sur le téléphone.
+        regroupement: `couverture-${c.id}`,
       }, 'couverture').catch(e => journal.error('[Couverture] envoi', (e as Error).message));
       alertes++;
     }

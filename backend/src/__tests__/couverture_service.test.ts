@@ -59,6 +59,14 @@ describe('la surveillance', () => {
     expect(message.body).toContain('Ou 334');
     expect(message.body).toContain('récupérer ta mise');
     expect(message.data).toEqual({ type: 'couverture', deep_link: '/pronostics/p1' });
+    // L'action d'abord : sur l'écran verrouillé, seule la première ligne se lit.
+    expect(message.body.startsWith('Mise 500')).toBe(true);
+    expect(message.body).toContain('sur « Moins de 2,5 buts » à 4.00');
+    // La mise concernée : plusieurs pronostics peuvent porter sur le même match.
+    expect(message.body).toContain('Ta mise : « Plus de 2,5 buts »');
+    expect(message.body).toContain('si ta sélection passe');
+    // La seconde alerte de cette mise remplacera celle-ci sur le téléphone.
+    expect(message.regroupement).toBe('couverture-b1');
     // Marquée avant l'envoi, et seulement si personne ne l'a fait entre-temps.
     const marque = (prisma.bankrollBet.updateMany as jest.Mock).mock.calls[0][0];
     expect(marque.where).toEqual({ id: 'b1', couvertureAlertes: 0 });
@@ -96,7 +104,9 @@ describe('la surveillance', () => {
     // 500 F à 2 × 2 = 4 ; l'inverse à 4 : 500 F dessus, +1 000 F garantis.
     expect(message.title).toMatch(/^Couvre ton combiné : \+1\s000 .+ garantis$/);
     expect(message.data).toEqual({ type: 'couverture', deep_link: '/bankroll/combine/c1' });
-    expect(message.body).toContain('il ne manque que « Plus de 2,5 buts » à ton combiné');
+    expect(message.body).toContain('Ton combiné n’attend plus que « Plus de 2,5 buts »');
+    expect(message.body).toContain('si ton combiné passe');
+    expect(message.regroupement).toBe('couverture-c1');
     expect((prisma.bankrollCombine.updateMany as jest.Mock).mock.calls[0][0].where).toEqual({ id: 'c1', couvertureAlertes: 0 });
   });
 
@@ -184,6 +194,37 @@ describe('la fiche du match', () => {
     jest.spyOn(apiFootballInsights, 'getLiveOdds').mockResolvedValue(null);
     expect(await couverturePourAbonne('u1', 'p1', maintenant))
       .toMatchObject({ disponible: false, raison: 'cote', inverse_fr: 'Moins de 2,5 buts', mise: 1000 });
+  });
+});
+
+describe('le texte des alertes (27 novembre 2026)', () => {
+  it('une ligne entière : pas de « quel que soit le résultat », le remboursement est dit', async () => {
+    jest.spyOn(prisma.bankrollBet, 'findMany').mockResolvedValue(
+      [pari({ pronostic: { ...pari().pronostic, marketValue: 'Over 2' } })] as any);
+    jest.spyOn(apiFootballInsights, 'getLiveOdds').mockResolvedValue({
+      fixtureId: 4242, elapsed: 20, stale: false,
+      markets: [{ key: 'over/under line', name: 'Plus/Moins', values: [{ value: 'Under', odd: 4, ligne: '2', labels: { fr: '', en: '' } }] }],
+    } as any);
+    expect((await surveillerCouvertures(maintenant, notif())).alertes).toBe(1);
+    const [, message] = envoi.mock.calls[0];
+    expect(message.title).toContain('sans perte possible');
+    expect(message.title).not.toContain('garantis');
+    expect(message.body).not.toContain('quel que soit le résultat');
+    expect(message.body).toContain('ou les deux mises remboursées s\'il y a exactement 2 buts');
+    expect(message.bodyEn).toContain('or both stakes refunded if there are exactly 2 goals');
+  });
+
+  it('avant le match : la notification le dit', async () => {
+    const m = match('SCHEDULED', 90);
+    jest.spyOn(prisma.bankrollBet, 'findMany').mockResolvedValue([pari({}, null, m)] as any);
+    jest.spyOn(apiFootballService, 'getOdds1xBet').mockResolvedValue({
+      source: '1xBet', options: [],
+      markets: [{ name: 'Goals Over/Under', values: [{ value: 'Over 2.5', odd: 1.4 }, { value: 'Under 2.5', odd: 4.2 }] }],
+    } as any);
+    expect((await surveillerCouvertures(maintenant, notif())).alertes).toBe(1);
+    const [, message] = envoi.mock.calls[0];
+    expect(message.body).toContain('Arsenal – Chelsea, avant le match.');
+    expect(message.bodyEn).toContain('Arsenal – Chelsea, before kick-off.');
   });
 });
 

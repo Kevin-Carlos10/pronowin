@@ -15,6 +15,7 @@ process.env.FIREBASE_PRIVATE_KEY = 'banc';
 
 const mockLots: string[][] = [];
 const mockDonnees: Array<Record<string, string>> = [];
+const mockMessages: any[] = [];
 const mockMorts = new Set<string>();
 const mockRefuses = new Set<string>();
 
@@ -24,6 +25,7 @@ jest.mock('firebase-admin', () => ({
     apps: [{}], // déjà initialisé : initializeApp n'est pas appelé
     messaging: () => ({
       sendEachForMulticast: (m: { tokens: string[]; data?: Record<string, string> }) => {
+        mockMessages.push(m);
         mockLots.push([...m.tokens]);
         mockDonnees.push({ ...(m.data ?? {}) });
         const responses = m.tokens.map(t => mockMorts.has(t)
@@ -64,7 +66,9 @@ beforeAll(async () => {
   }
 });
 
-beforeEach(() => { mockLots.length = 0; mockDonnees.length = 0; mockMorts.clear(); mockRefuses.clear(); });
+beforeEach(() => {
+  mockLots.length = 0; mockDonnees.length = 0; mockMessages.length = 0; mockMorts.clear(); mockRefuses.clear();
+});
 
 afterAll(async () => {
   if (!BASE_LOCALE) return;
@@ -101,6 +105,20 @@ decrireSurBaseLocale('appareils de notification (I12)', () => {
     expect((await prisma.notification.findUnique({ where: { id } }))!.isRead).toBe(false);
     await svc.markRead(comptes.c, id);
     expect((await prisma.notification.findUnique({ where: { id } }))!.isRead).toBe(true);
+  });
+
+  it('un regroupement : la notification suivante remplace la précédente sur le téléphone', async () => {
+    // La seconde alerte de couverture d'une mise remplace la première
+    // (27 novembre 2026) : même `tag` sur Android, même `apns-collapse-id`.
+    await svc.registerToken(comptes.c, jeton('regroupe'), 'android');
+    await svc.sendToUser(comptes.c, { ...message, regroupement: 'couverture-b1' });
+    await svc.sendToUser(comptes.c, message);
+    await prisma.appareilNotification.deleteMany({ where: { jeton: jeton('regroupe') } });
+    expect(mockMessages[0].android.notification.tag).toBe('couverture-b1');
+    expect(mockMessages[0].apns.headers).toEqual({ 'apns-collapse-id': 'couverture-b1' });
+    // Sans regroupement, rien ne change.
+    expect(mockMessages[1].android.notification.tag).toBeUndefined();
+    expect(mockMessages[1].apns.headers).toBeUndefined();
   });
 
   it('un compte reçoit sur chacun de ses appareils', async () => {

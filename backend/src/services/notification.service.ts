@@ -230,8 +230,15 @@ export class NotificationService {
     title: string; body: string; titleEn?: string | null; bodyEn?: string | null; data?: Record<string, string>;
     /** Une image, comme le logo de l'équipe qui marque (10 novembre 2026). */
     imageUrl?: string | null;
+    /**
+     * Les notifications de même regroupement se remplacent sur le téléphone
+     * au lieu de s'empiler (27 novembre 2026) : la seconde alerte de
+     * couverture d'une mise remplace la première.
+     */
+    regroupement?: string | null;
   }, category?: NotifCategory) {
     const image = payload.imageUrl ?? null;
+    const regroupement = payload.regroupement ?? null;
     const user = await prisma.user.findUnique({
       where:  { id: userId },
       select: { notificationPrefs: true, appareils: { select: { jeton: true, language: true } } },
@@ -261,7 +268,7 @@ export class NotificationService {
     const results = [];
     for (const language of ['fr','en']) {
       const tokens = user.appareils.filter(a => (a.language || 'fr') === language).map(a => a.jeton);
-      if(tokens.length) results.push(await this._envoyerAuxAppareils(tokens, forLanguage(payload, language), image));
+      if(tokens.length) results.push(await this._envoyerAuxAppareils(tokens, forLanguage(payload, language), image, regroupement));
     }
     return {success: results.some(r => r.success),
       error: (results.find(r => !r.success) as any)?.error,
@@ -325,7 +332,7 @@ export class NotificationService {
    */
   private async _envoyerAuxAppareils(jetons: string[], payload: {
     title: string; body: string; titleEn?: string | null; bodyEn?: string | null; data?: Record<string, string>;
-  }, image: string | null = null) {
+  }, image: string | null = null, regroupement: string | null = null) {
     const fa = await getAdmin();
     if (!fa) {
       const refus = sansFirebase();
@@ -342,9 +349,15 @@ export class NotificationService {
         data:         payload.data ?? {},
         android: {
           priority: 'high',
-          notification: { channelId: 'pronowin_high', sound: 'default', clickAction: 'FLUTTER_NOTIFICATION_CLICK' },
+          notification: {
+            channelId: 'pronowin_high', sound: 'default', clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            ...(regroupement ? { tag: regroupement } : {}),
+          },
         },
-        apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+        apns: {
+          ...(regroupement ? { headers: { 'apns-collapse-id': regroupement.slice(0, 64) } } : {}),
+          payload: { aps: { sound: 'default', badge: 1 } },
+        },
       });
       const morts = jetons.filter((_, k: number) =>
         !r.responses[k]?.success && DEAD_TOKEN_CODES.has(r.responses[k]?.error?.code));
