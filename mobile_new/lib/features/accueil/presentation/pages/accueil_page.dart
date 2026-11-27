@@ -118,6 +118,35 @@ class AccueilPage extends ConsumerStatefulWidget {
 /// simple : aucun pronostic n'était publié, donc `enDirect` était faux partout.
 /// Le correctif est préventif — il porte sur les jours où il y a du contenu en
 /// direct, qui sont précisément ceux où l'application sert à quelque chose.
+/// Le haut de l'accueil peut-il s'afficher ? Oui quand chaque réponse
+/// attendue est arrivée, données ou erreur ; `null` : une réponse que ce
+/// compte n'attend pas.
+///
+/// ── Pourquoi attendre ─────────────────────────────────────────────────────
+///
+/// Au démarrage, chaque bloc attend sa propre réponse, et elles arrivent dans
+/// n'importe quel ordre. Le haut de l'écran se construisait bloc par bloc, et
+/// chaque arrivée poussait ce qu'on lisait déjà (27 novembre 2026, mesuré par
+/// `accueil_sans_saut_test.dart`) :
+///
+///   * la carte « Top du jour » remplaçait un squelette de 280 px par ~370 px,
+///     et le code promo descendait d'autant ;
+///   * pour un abonné, la bande « 30 derniers pronostics » apparaissait tout
+///     en haut et poussait l'écran entier ;
+///   * les blocs fixes du bas (« Grandes compétitions ») se montraient sous le
+///     squelette, puis étaient chassés hors de l'écran.
+///
+/// Les squelettes bloc par bloc ne pouvaient pas suffire : un bloc qui n'a
+/// rien à montrer (pas de bilan hier) ne peut tenir sa place qu'en la rendant
+/// ensuite, ce qui fait sauter dans l'autre sens.
+@visibleForTesting
+bool hautDeLAccueilPret(Iterable<AsyncValue<Object?>?> attendus) =>
+    attendus.every((v) => v == null || v.hasValue || v.hasError);
+
+/// Au-delà, l'accueil s'affiche avec ce qu'il a : sur un réseau lent, mieux
+/// vaut un écran qui bouge qu'un squelette sans fin.
+const attenteHautMax = Duration(seconds: 4);
+
 @visibleForTesting
 bool doitRafraichirEnDirect({
   required bool enDirect,
@@ -133,10 +162,18 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
   AppLifecycleState _cycle = AppLifecycleState.resumed;
   bool _ongletVisible = true;
 
+  /// Le haut de l'accueil est affiché : il ne revient plus au squelette, même
+  /// quand un rafraîchissement relance ses requêtes.
+  bool _hautAffiche = false;
+  Timer? _attenteHaut;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _attenteHaut = Timer(attenteHautMax, () {
+      if (mounted && !_hautAffiche) setState(() => _hautAffiche = true);
+    });
     // « Être notifié » : une fois, à partir de la deuxième ouverture, si le
     // téléphone n'a jamais posé la question (demande_notifications.dart).
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -175,6 +212,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _liveTimer?.cancel();
+    _attenteHaut?.cancel();
     super.dispose();
   }
 
@@ -208,6 +246,25 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
     final user      = authState is AuthAuthenticated ? authState.user : null;
     final isPremium = user?.isPremium ?? false;
 
+    // Ce que le haut de l'écran attend avant de s'afficher d'un bloc.
+    if (!_hautAffiche) {
+      final favoris = ref.watch(favorisProvider);
+      final dejaSuivis = favoris.valueOrNull?.matchIds.isNotEmpty ?? false;
+      _hautAffiche = hautDeLAccueilPret([
+        pronostics,
+        ref.watch(nextPronosticProvider),
+        ref.watch(hierProvider),
+        ref.watch(promoPartenaireProvider),
+        favoris,
+        // Les matchs suivis, seulement quand il y en a : sinon le bloc reste
+        // vide, et sa réponse ne change rien à l'écran.
+        dejaSuivis ? ref.watch(favoritesListProvider) : null,
+        // La bande de preuve, réservée aux abonnés.
+        isPremium ? ref.watch(performance30Provider) : null,
+      ]);
+      if (_hautAffiche) _attenteHaut?.cancel();
+    }
+
     return Scaffold(
       body: RefreshIndicator(
         color: AppColors.primary,
@@ -240,6 +297,26 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
             // ─── BANNIÈRE HORS LIGNE ─────────────────────────────────────────
             const _SliverOfflineBanner(),
 
+            // ─── EN ATTENDANT LE HAUT DE L'ÉCRAN ─────────────────────────────
+            // Les squelettes seuls : les blocs fixes du bas n'y sont pas, sans
+            // quoi ils se montreraient sous le squelette avant d'être chassés
+            // hors de l'écran.
+            if (!_hautAffiche)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, bottomNavSpace(context)),
+                sliver: SliverList(
+                  key: const Key('accueil-chargement'),
+                  delegate: SliverChildListDelegate([
+                    const _BandeauHierSquelette(),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: _NextMatchSkeleton(),
+                    ),
+                    const _PronosticsShimmer(),
+                  ]),
+                ),
+              )
+            else
             SliverPadding(
               padding: EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, bottomNavSpace(context)),
               sliver: SliverList(

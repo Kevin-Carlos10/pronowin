@@ -58,8 +58,8 @@ void main() {
             'couverture_enregistree': null, 'selections': <Map<String, dynamic>>[],
           },
         ],
-        if (courbe != null) 'courbe': courbe,
-        if (semaine != null) 'semaine': semaine,
+        'courbe': ?courbe,
+        'semaine': ?semaine,
       };
 
   group('le repli local, face à un serveur qui n\'envoie pas la courbe', () {
