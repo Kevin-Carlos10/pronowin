@@ -16,14 +16,19 @@
   --cr-radius-s: 11px;
 }
 
+/* En-têtes compacts (27 novembre 2026) : chaque page ouvrait sur un cadre
+   d'environ 170 px — surtitre, titre, phrase d'explication sur deux lignes —
+   et la liste des pronostics commençait à mi-écran. Le surtitre répétait le
+   titre et l'entrée active du menu : il disparaît. La phrase tient sur une
+   ligne, en plus petit. */
 .workspace-header {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--cr-space-3);
-  margin: 0 0 var(--cr-space-4);
-  padding: var(--cr-space-4);
+  align-items: center;
+  gap: var(--cr-space-2) var(--cr-space-3);
+  margin: 0 0 var(--cr-space-3);
+  padding: .9rem 1.25rem;
   border: 1px solid var(--border);
   border-radius: var(--cr-radius);
   background:
@@ -34,7 +39,7 @@
 
 .workspace-heading { min-width: 0; flex: 1 1 340px; }
 .workspace-eyebrow {
-  display: flex;
+  display: none;
   align-items: center;
   gap: .45rem;
   margin-bottom: .4rem;
@@ -49,15 +54,15 @@
   align-items: center;
   gap: .55rem;
   margin: 0;
-  font-size: clamp(1.35rem, 2vw, 1.8rem);
-  letter-spacing: -.035em;
+  font-size: clamp(1.2rem, 1.6vw, 1.45rem);
+  letter-spacing: -.03em;
 }
 .workspace-description {
-  max-width: 62ch;
-  margin-top: .45rem;
+  max-width: 95ch;
+  margin-top: .2rem;
   color: var(--text-m);
-  font-size: var(--fs-m);
-  line-height: 1.55;
+  font-size: var(--fs-s);
+  line-height: 1.5;
 }
 .workspace-actions {
   display: flex;
@@ -174,12 +179,20 @@
 .operational-queue .file-tache:hover { background: var(--surface-h); }
 
 .metric-grid { gap: .85rem; }
+/* À la hauteur de leur contenu : 132 px de haut pour un seul chiffre
+   laissaient la moitié basse de chaque tuile vide (27 novembre 2026). */
 .metric-card {
-  min-height: 132px;
+  min-height: 0;
   border-radius: var(--cr-radius);
   box-shadow: var(--shadow);
 }
 .metric-card:hover { border-color: var(--border-s); }
+/* Les milliers se lisent : l'espace insécable (lib/espaces_lisibles.js)
+   s'élargit dans les grands chiffres, en gras et resserrés, où elle restait
+   étroite. */
+.metric-card .val,
+.metric-card .kpi-val,
+.metric-card.pro-stat .v { word-spacing: .14em; }
 .metric-card .kpi-lbl,
 .metric-card.pro-stat .l { letter-spacing: .09em; }
 
@@ -273,26 +286,28 @@
 .action-menu-list .btn { justify-content: center; min-height: 30px; padding: 3px 5px; }
 
 @media (max-width: 900px) {
-  .workspace-header { flex-direction: column; align-items: stretch; padding: 1rem; }
+  .workspace-header { flex-direction: column; align-items: stretch; padding: .85rem 1rem; }
   .workspace-actions { justify-content: flex-start; }
   .control-section-head { align-items: flex-start; flex-direction: column; }
   .prediction-table .dt-scroll { max-height: none; }
 }
 
 @media (max-width: 600px) {
-  .workspace-header { margin-bottom: 1rem; }
-  .workspace-header h1 { font-size: 1.35rem; }
+  .workspace-header { margin-bottom: .85rem; }
+  .workspace-header h1 { font-size: 1.25rem; }
+  /* Les boutons se partagent une rangée au lieu d'en prendre une chacun :
+     « Resynchroniser les scores » et « Export CSV » empilés ajoutaient près
+     de 90 px à l'en-tête des pronostics. */
   .workspace-actions > .btn, .workspace-actions > form { flex: 1 1 auto; }
-  .workspace-actions > .btn, .workspace-actions > form .btn { justify-content: center; width: 100%; }
+  .workspace-actions > .btn, .workspace-actions > form .btn { justify-content: center; }
+  .workspace-actions > form .btn { width: 100%; }
   .view-tabs { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
   .view-tab { flex: 0 0 auto; }
   .command-surface { padding: .65rem; }
-  .metric-card { min-height: 112px; }
   .cr-callout { padding: .8rem; }
 }
 
 /* Tableau de bord : densité adaptée au travail quotidien. */
-.dashboard-workspace .workspace-header { padding: 1.25rem; }
 .dashboard-workspace .workspace-description { max-width: 70ch; }
 .dashboard-workspace .workspace-actions { flex: 1 1 440px; }
 .dashboard-queue .file-entete { min-height: 0; padding: .55rem 1rem; font-size: .8rem; }
@@ -333,7 +348,6 @@
 }
 @media (max-width: 600px) {
   .dashboard-workspace .kpi-grid { grid-template-columns: 1fr !important; }
-  .dashboard-workspace .kpi-card { min-height: 120px; }
   .dashboard-queue .file-txt { flex-basis: calc(100% - 55px); }
   .dashboard-queue .file-tache > .btn { margin-left: 47px; }
   .dashboard-workspace .workspace-actions { gap: .6rem; }

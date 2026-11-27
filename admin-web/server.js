@@ -695,6 +695,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(require('./lib/ui-language').middleware);
+// Les séparateurs de milliers restent visibles dans les grands chiffres.
+app.use(require('./lib/espaces_lisibles').middleware);
 // Le proxy public réserve /admin au panneau ; les autres chemins vont au site.
 app.use('/admin/assets', express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));

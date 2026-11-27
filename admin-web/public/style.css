@@ -1318,3 +1318,17 @@ html.light[data-accent="pink"] { --primary: #BE185D; }
 .champ-apk{margin-bottom:.7rem}
 .champ-apk > label{font-size:.75rem;font-weight:700;color:var(--text-m)}
 .champ-apk > .input{margin-top:.3rem}
+
+/* Traduction anglaise du formulaire de pronostic, repliée près de la note
+   analyste (27 novembre 2026). Elle ouvrait le formulaire dans un cadre sans
+   style, sous des libellés en anglais. */
+.traduction-en { margin-bottom: 1.1rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-d); }
+.traduction-en > summary { display: flex; align-items: center; gap: .5rem; min-height: 44px; padding: .55rem .85rem; cursor: pointer; list-style: none; font-size: var(--fs-s); font-weight: 700; color: var(--text); }
+.traduction-en > summary::-webkit-details-marker { display: none; }
+.traduction-en > summary::after { content: '\25BE'; margin-left: auto; color: var(--text-dim); transition: transform .15s; }
+.traduction-en[open] > summary::after { transform: rotate(180deg); }
+.traduction-en-etat { font-size: var(--fs-xs); font-weight: 600; color: var(--text-m); }
+.traduction-en-corps { padding: 0 .85rem .25rem; }
+.traduction-en-aide { margin: 0 0 .75rem; font-size: var(--fs-xs); color: var(--text-m); line-height: 1.5; }
+/* L'avertissement du direct, dans le résumé du match sous 1 180 px. */
+.pf-resume-direct { display: flex; align-items: center; gap: .35rem; font-size: var(--fs-xs); color: var(--on-danger); }

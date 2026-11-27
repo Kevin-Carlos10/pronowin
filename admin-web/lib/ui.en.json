@@ -196,5 +196,11 @@
   "Ajouter le code promo {code}": "Add the promo code {code}",
   "Aucun code promo configuré": "No promo code configured",
   "{n} relance(s) envoyée(s)": "{n} reminder(s) sent",
-  "Erreur": "Error"
+  "Erreur": "Error",
+  "En direct : les cotes pré-match peuvent être suspendues ou obsolètes.": "Live: pre-match odds may be suspended or out of date.",
+  "Traduction anglaise": "English translation",
+  "renseignée": "filled in",
+  "facultative": "optional",
+  "Libellé affiché, en anglais": "Displayed label, in English",
+  "Note analyste, en anglais": "Analyst note, in English"
 }

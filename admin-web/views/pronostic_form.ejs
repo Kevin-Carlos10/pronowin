@@ -314,11 +314,12 @@
 @media(max-width:1180px){
   .pf-main-grid { grid-template-columns:1fr; }
   .pf-side      { position:static; }
-  .pf-main-grid > :first-child { order: 2; }
-  .pf-main-grid > :last-child { order: 1; }
+  /* L'aperçu « Ce que l'abonné verra » passe avant le formulaire, et la
+     grande carte du match s'efface : le résumé au-dessus donne déjà les
+     équipes, la date et le direct. Elles venaient toutes deux après le
+     formulaire et la barre d'actions, tout en bas (27 novembre 2026). */
+  .pf-side > .pf-carte-match { display:none; }
   .prono-mobile-summary { display:flex !important; }
-  .pf-side .match-preview { padding:.5rem; }
-  .pf-side .mp-team img, .pf-side .mp-team .initial { width:36px; height:36px; }
 }
 @media(max-width:760px){ .pf-two { grid-template-columns:1fr; gap:0; } }
 </style>
@@ -349,18 +350,16 @@
 <%# Le pronostic édité, ou un nouveau pour ce match (23 novembre 2026). %>
 <% if (isEdit) { %><input type="hidden" name="pronostic_id" value="<%= pro.id %>">
 <% } else if (_q.nouveau === '1') { %><input type="hidden" name="nouveau" value="true"><% } %>
-<fieldset class="translation-preview" lang="en" <%= _lectureSeule ? 'disabled' : '' %>><legend>English translation</legend><p><%= uiText("Champs facultatifs : sans traduction, le texte français est conservé.") %></p>
-<div class="form-group"><label for="i18n-prediction_label_en">Custom prediction label</label><textarea class="input" id="i18n-prediction_label_en" name="prediction_label_en" rows="3" maxlength="500"><%= (pro).prediction_label_en || '' %></textarea></div>
-<div class="form-group"><label for="i18n-analyst_note_en">Analyst note</label><textarea class="input" id="i18n-analyst_note_en" name="analyst_note_en" rows="3" maxlength="50000"><%= (pro).analyst_note_en || '' %></textarea></div>
-</fieldset>
-
-<div class="prono-mobile-summary"><strong><%= match.homeTeam %> — <%= match.awayTeam %></strong><span><%= match.league %> · <%= dateStr %> · <%= timeStr %></span></div>
+<%# Sous 1 180 px, ce résumé remplace la grande carte du match : il porte
+    aussi l'avertissement du direct, que la carte était seule à donner. %>
+<div class="prono-mobile-summary"><strong><%= match.homeTeam %> — <%= match.awayTeam %></strong><span><%= match.league %> · <%= dateStr %> · <%= timeStr %></span>
+<% if(isLive){ %><span class="pf-resume-direct"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> <%= uiText("En direct : les cotes pré-match peuvent être suspendues ou obsolètes.") %></span><% } %></div>
 <div class="pf-main-grid">
 
   <!-- ── Colonne gauche : match info + récap + actions (collante) ─────────────── -->
   <div>
    <div class="pf-side">
-    <div class="card cr-panel">
+    <div class="card cr-panel pf-carte-match">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem">
         <% if(match.leagueLogo){ %><img src="<%= match.leagueLogo %>" style="width:18px;height:18px;object-fit:contain" onerror="this.style.display='none'" alt=""><% } %>
         <span class="badge badge-info" style="font-size:.7rem"><%= match.league %></span>
@@ -474,22 +473,25 @@
       <div class="form-group" style="margin-bottom:1.1rem">
         <label id="lbl-type">Type de pronostic</label>
         <div class="type-pills" id="type-pills" role="group" aria-labelledby="lbl-type">
+          <%# Les icônes du panneau (views/_icons.ejs) et non des emoji : ils
+              étaient les seuls de l'écran, et leur rendu change d'un
+              système à l'autre. %>
           <% const types = [
-            {v:'win1',  l:'🏠 Victoire dom.'},
-            {v:'draw',  l:'🤝 Match nul'},
-            {v:'win2',  l:'✈️ Victoire ext.'},
-            {v:'btts',  l:'⚽⚽ BTTS'},
-            {v:'over25',l:'📈 +2.5 buts'},
-            {v:'under25',l:'📉 -2.5 buts'},
-            {v:'over35',l:'📈 +3.5 buts'},
-            {v:'under35',l:'📉 -3.5 buts'},
+            {v:'win1',   i:'home',       l:'Victoire dom.'},
+            {v:'draw',   i:'handshake',  l:'Match nul'},
+            {v:'win2',   i:'plane',      l:'Victoire ext.'},
+            {v:'btts',   i:'ball',       l:'BTTS'},
+            {v:'over25', i:'arrow-up',   l:'+2.5 buts'},
+            {v:'under25',i:'arrow-down', l:'-2.5 buts'},
+            {v:'over35', i:'arrow-up',   l:'+3.5 buts'},
+            {v:'under35',i:'arrow-down', l:'-3.5 buts'},
           ]; %>
           <% types.forEach(t => { %>
           <div class="type-pill <%= (pro.prediction_type||'win1')===t.v?'active':'' %>"
                data-val="<%= t.v %>" role="button" tabindex="0"
                aria-pressed="<%= (pro.prediction_type||'win1')===t.v ? 'true':'false' %>"
                onclick="setType('<%= t.v %>')"
-               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setType('<%= t.v %>')}"><%= t.l %><span class="pill-odd" id="odd-<%= t.v %>"></span></div>
+               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setType('<%= t.v %>')}"><svg class="ic" aria-hidden="true"><use href="#ic-<%= t.i %>"/></svg> <%= t.l %><span class="pill-odd" id="odd-<%= t.v %>"></span></div>
           <% }) %>
         </div>
         <input type="hidden" name="prediction_type" id="type-input" value="<%= pro.prediction_type||'win1' %>">
@@ -659,6 +661,26 @@
         <textarea class="input" id="analyst-note" name="analyst_note" rows="4"
                   placeholder="Analyse détaillée du match, contexte, absents clés…"><%= pro.analyst_note||'' %></textarea>
       </div>
+
+      <%# La traduction anglaise, repliée près de la note analyste (27 novembre
+          2026). Elle ouvrait le formulaire, avant le match et le choix du
+          pronostic, dans un cadre sans style et sous des libellés en anglais.
+          Elle est facultative, et le libellé des marchés connus se traduit
+          tout seul : on l'ouvre quand un texte anglais existe déjà, ou quand
+          l'aperçu signale un libellé à traduire. %>
+      <% const _anglaisRenseigne = !!(String(pro.prediction_label_en || '').trim() || String(pro.analyst_note_en || '').trim()); %>
+      <details class="traduction-en" id="traduction-en" <%= _anglaisRenseigne ? 'open' : '' %>>
+        <summary>
+          <svg class="ic" aria-hidden="true"><use href="#ic-globe"/></svg>
+          <span class="traduction-en-titre"><%= uiText("Traduction anglaise") %></span>
+          <span class="traduction-en-etat"><%= _anglaisRenseigne ? uiText("renseignée") : uiText("facultative") %></span>
+        </summary>
+        <div class="traduction-en-corps">
+          <p class="traduction-en-aide"><%= uiText("Champs facultatifs : sans traduction, le texte français est conservé.") %></p>
+          <div class="form-group"><label for="i18n-prediction_label_en"><%= uiText("Libellé affiché, en anglais") %></label><textarea class="input" id="i18n-prediction_label_en" name="prediction_label_en" lang="en" rows="2" maxlength="500"><%= (pro).prediction_label_en || '' %></textarea></div>
+          <div class="form-group"><label for="i18n-analyst_note_en"><%= uiText("Note analyste, en anglais") %></label><textarea class="input" id="i18n-analyst_note_en" name="analyst_note_en" lang="en" rows="3" maxlength="50000"><%= (pro).analyst_note_en || '' %></textarea></div>
+        </div>
+      </details>
 
       <!-- VIP toggle -->
       <div class="form-group" style="margin-bottom:0">
@@ -833,6 +855,7 @@ function updateRecap() {
     const manualEnglish = document.getElementById('i18n-prediction_label_en').value.trim();
     const translated = PronoFootball.prediction(language === 'en' && manualEnglish ? manualEnglish : label, language, home, away);
     if (language === 'en' && manualEnglish) translated.known = true;
+    if (language === 'en' && !translated.known && label) document.getElementById('traduction-en').open = true;
     document.getElementById('preview-' + language).textContent = translated.text || '—';
     document.getElementById('preview-state-' + language).textContent = translated.known ? 'Traduction disponible' : 'Texte personnalisé ou traduction à relire';
   }
