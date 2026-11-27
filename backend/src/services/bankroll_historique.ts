@@ -81,7 +81,7 @@ export const COURBE_POINTS_MAX = 200;
  * Le résultat net cumulé, mise après mise.
  *
  * Le cumul part de zéro et porte sur tout l'historique. Au-delà de
- * [max] mises, seules les dernières sont envoyées, et `depart` donne le cumul
+ * [max] mises, seules les dernières sont envoyées, et `cumul_depart` donne le cumul
  * qui les précède : la courbe reprend là où elle en était, au lieu de
  * repartir de zéro.
  */
@@ -95,7 +95,7 @@ export function courbeResultats(liste: ResultatRegle[], max = COURBE_POINTS_MAX)
   const omis = points.length - gardes.length;
   return {
     reglees: liste.length,
-    depart: omis > 0 ? points[omis - 1].cumul : 0,
+    cumul_depart: omis > 0 ? points[omis - 1].cumul : 0,
     points: gardes,
   };
 }

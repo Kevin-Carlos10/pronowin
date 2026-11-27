@@ -91,7 +91,7 @@ describe('la courbe du résultat net', () => {
     poserHistorique();
     const courbe = courbeResultats(await resultatsRegles('b1'));
     expect(courbe.reglees).toBe(6);
-    expect(courbe.depart).toBe(0);
+    expect(courbe.cumul_depart).toBe(0);
     expect(courbe.points.map((p) => p.cumul)).toEqual([-300, -800, 600, 600, 1100, 2100]);
     expect(courbe.points[2]).toMatchObject({ genre: 'combine', le: ilYa(4).toISOString() });
   });
@@ -99,7 +99,7 @@ describe('la courbe du résultat net', () => {
   it('au-delà du maximum : les dernières mises, et le cumul qui les précède', async () => {
     poserHistorique();
     const courbe = courbeResultats(await resultatsRegles('b1'), 2);
-    expect(courbe).toMatchObject({ reglees: 6, depart: 600 });
+    expect(courbe).toMatchObject({ reglees: 6, cumul_depart: 600 });
     expect(courbe.points.map((p) => p.cumul)).toEqual([1100, 2100]);
   });
 });
