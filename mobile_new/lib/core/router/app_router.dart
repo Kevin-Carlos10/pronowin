@@ -27,6 +27,7 @@ import '../../features/classement/presentation/pages/classement_page.dart';
 import '../../features/pronostics/presentation/pages/historique_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/bankroll/presentation/pages/bet_detail_page.dart';
+import '../../features/bankroll/presentation/pages/combines_pages.dart';
 import '../../features/joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../../features/equipes/presentation/pages/fiche_equipe_page.dart';
 import '../../features/equipes/presentation/providers/fiche_equipe_provider.dart';
@@ -321,6 +322,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, s) => slideRightPage(
           state: s,
           child: BetDetailPage(bet: s.extra as BankrollBet)),
+      ),
+      // Les combinés (27 novembre 2026) : « nouveau » avant l'identifiant.
+      GoRoute(
+        path: '/bankroll/combine/nouveau',
+        pageBuilder: (_, s) => slideRightPage(state: s, child: const NouveauCombinePage()),
+      ),
+      GoRoute(
+        path: '/bankroll/combine/:id',
+        pageBuilder: (_, s) => slideRightPage(
+          state: s, child: CombineDetailPage(id: s.pathParameters['id']!)),
       ),
 
       // ── Détails (slide up modal + Hero) ────────────────────────────────────

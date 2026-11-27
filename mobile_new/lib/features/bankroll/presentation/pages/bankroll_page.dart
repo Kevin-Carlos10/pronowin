@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
+import '../widgets/section_combines.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/montant.dart';
@@ -309,6 +310,11 @@ class _BankrollView extends StatelessWidget {
           // ── Alerte dérive ─────────────────────────────────────────────
           _DisciplineReminder()
             .animate(delay: 120.ms).fadeIn(duration: 300.ms),
+
+          // ── Combinés (27 novembre 2026) ───────────────────────────────
+          const SizedBox(height: 20),
+          SectionCombines(bankroll: bankroll)
+            .animate(delay: 140.ms).fadeIn(duration: 300.ms),
 
           // « Réinitialiser le solde » occupait ici toute la largeur, cerclé
           // de rouge, entre le bilan et les filtres — aussi visible qu'une
@@ -971,6 +977,9 @@ class _BetCard extends StatelessWidget {
     final montant = bet.profit != null
         ? tr(context, "{arg0} de {arg1}", [bet.profit! >= 0 ? tr(context, "Gain") : tr(context, "Perte"), montantExact(bet.profit!.abs())])
         : tr(context, "Gain potentiel {arg0}", [montantExact(bet.potentialGain)]);
+    // Une mise couverte se lit avec sa couverture (27 novembre 2026).
+    final couverture = bet.couvertureEnregistree;
+    final net = bet.resultatNet ?? bet.profit;
 
     return Semantics(
       button: true,
@@ -1002,6 +1011,15 @@ class _BetCard extends StatelessWidget {
             const SizedBox(height: 3),
             Text(bet.displayPredictionLabel,
               style: TextStyle(color: context.cl.textM, fontSize: 11)),
+            if (couverture != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                tr(context, "Couverte : {arg0} sur « {arg1} »",
+                  [montantExact(couverture.mise), couverture.selection(AppStrings.of(context).locale.languageCode == 'en')]),
+                key: Key('pari-couverture-${bet.id}'),
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w600)),
+            ],
             // M1 : la question attend dans le détail du pari.
             if (bet.aConfirmer) ...[
               const SizedBox(height: 4),
@@ -1016,11 +1034,11 @@ class _BetCard extends StatelessWidget {
               style: TextStyle(color: context.cl.textP, fontSize: 12,
                   fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
-            if (bet.profit != null)
+            if (net != null)
               Text(
-                tr(context, "Net {arg0}", ['${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)}']),
+                tr(context, "Net {arg0}", ['${net >= 0 ? '+' : ''}${montantExact(net)}']),
                 style: TextStyle(
-                  color: bet.profit! >= 0 ? context.cl.success : context.cl.error,
+                  color: net >= 0 ? context.cl.success : context.cl.error,
                   fontSize: 12, fontWeight: FontWeight.w700))
             else
               Text(tr(context, "Brut potentiel {arg0}", [montantExact(bet.potentialGain)]),

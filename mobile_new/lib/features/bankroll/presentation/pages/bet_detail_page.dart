@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/widgets/confidence_indicator.dart';
 import '../providers/bankroll_provider.dart';
+import '../widgets/carte_couverture.dart';
 import '../widgets/confirmation_mise.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/montant.dart';
@@ -70,7 +71,18 @@ class BetDetailPage extends StatelessWidget {
           const SizedBox(height: 12),
           _CarteArgent(bet: bet)
               .animate().fadeIn(duration: 350.ms, delay: 220.ms).slideY(begin: 0.05, end: 0),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+
+          // La mise sur l'inverse, si elle a été enregistrée (27 novembre 2026).
+          if (bet.couvertureEnregistree case final h?)
+            CarteCouverture(cle: bet.id, donnees: {
+              'devise': bet.currency,
+              'enregistree': {
+                'id': h.id, 'selection_fr': h.selectionFr, 'selection_en': h.selectionEn,
+                'strategie': h.strategie, 'mise': h.mise, 'cote': h.cote, 'result': h.result, 'profit': h.profit,
+              },
+            }),
+          const SizedBox(height: 8),
 
           // La page menait nulle part : l'analyse est à un toucher.
           SizedBox(
