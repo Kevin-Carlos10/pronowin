@@ -20,6 +20,7 @@ import { articlesDuMatch } from '../services/resumes_match.service';
 import { bilanReserve, calculerBilanPremium } from '../services/bilan_premium';
 import { statsSansTaux, voitLeTaux } from '../services/taux_reserve';
 import { calculerChiffresVip } from '../services/chiffres_vip';
+import { cotesDuDirectPourPanneau, enCoursPourPanneau } from '../services/cotes_direct_panneau';
 import { resumeVotes, voter } from '../services/votes_match.service';
 import { resumeJoueurDuMatch, voterJoueur } from '../services/joueur_du_match.service';
 import {
@@ -832,13 +833,32 @@ export const getAdminStats = async (_req: AdminRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
-/** GET /admin/match/:matchId/odds — cotes 1xBet live via API-Football */
+/**
+ * GET /admin/match/:matchId/odds — les cotes du formulaire du panneau.
+ *
+ * Avant le coup d'envoi : `/odds` (1xBet, sinon un autre bookmaker). Match en
+ * cours : `/odds/live` (27 novembre 2026). Le flux d'avant-match s'arrête au
+ * coup d'envoi, et publier en direct proposait des cotes périmées depuis le
+ * début du match. Sans cote en direct (marchés suspendus), on le dit plutôt
+ * que de rendre ces cotes figées.
+ */
 export const getMatchOdds = async (req: AdminRequest, res: Response) => {
   try {
     const match = await prisma.match.findUnique({ where: { id: req.params.matchId } });
     if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
     const dateStr = match.matchDate.toISOString().slice(0, 10);
     const fixtureId = match.source === 'API_FOOTBALL' ? match.externalId : undefined;
+    if (fixtureId && enCoursPourPanneau(match.status, match.matchDate)) {
+      const live = await apiFootballInsights.getLiveOdds(fixtureId).catch(() => null);
+      const direct = live ? cotesDuDirectPourPanneau(live, match.homeTeam, match.awayTeam) : null;
+      if (direct && direct.markets.length) { res.json(direct); return; }
+      if (match.status === 'LIVE') {
+        res.status(422).json({ message: 'Cotes en direct indisponibles pour le moment (marchés suspendus, ou match absent du flux en direct). Réessaie dans un instant, ou saisis la cote à la main.' });
+        return;
+      }
+      // Coup d'envoi passé mais statut pas encore à jour, sans flux en direct :
+      // le match n'a peut-être pas commencé, l'avant-match vaut encore.
+    }
     const odds = await apiFootballService.getOdds1xBet(match.homeTeam, match.awayTeam, dateStr, fixtureId);
     if (!odds) { res.status(422).json({ message: 'Cotes indisponibles pour ce match.' }); return; }
     res.json(odds);

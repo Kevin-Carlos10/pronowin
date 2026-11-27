@@ -326,7 +326,7 @@ export interface MatchOddsResult {
 
 // (marché, valeur) 1xBet → type de pronostic interne connu, pour les marchés
 // que l'app sait exploiter nativement (auto-calcul WIN/LOSS inclus).
-const KNOWN_TYPE_MAP: Record<string, Record<string, KnownPredictionType>> = {
+export const KNOWN_TYPE_MAP: Record<string, Record<string, KnownPredictionType>> = {
   'Match Winner':       { Home: 'win1', Draw: 'draw', Away: 'win2' },
   'Both Teams Score':   { Yes: 'btts' },
   'Goals Over/Under':   { 'Over 2.5': 'over25', 'Under 2.5': 'under25', 'Over 3.5': 'over35', 'Under 3.5': 'under35' },
