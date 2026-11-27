@@ -1,6 +1,30 @@
-# Version 1.0.43 (59) — la courbe et le bilan comptent tout
+# Version 1.0.43 (59) — un accueil qui ne saute plus, une courbe et un bilan qui comptent tout
 
 Préparée le 27 novembre 2026, après la 1.0.42 (58).
+
+## L'accueil ne saute plus à l'ouverture
+
+Signalé par l'utilisateur le 27 novembre 2026 (« à l'ouverture, la page
+d'accueil saute »).
+
+- Au démarrage, chaque bloc de l'accueil attendait sa propre réponse du
+  serveur, et le haut de l'écran se construisait bloc par bloc. Un banc
+  (`test/accueil_sans_saut_test.dart`) fait arriver chaque réponse en
+  dernier et relève tout texte qui bouge. Il a trouvé sept sauts :
+  - la carte « Top du jour » remplaçait un squelette de 280 px par une carte
+    d'environ 370 px, et le code promo descendait d'autant ;
+  - pour un abonné, la bande « 30 derniers pronostics » apparaissait tout en
+    haut et poussait l'écran entier ;
+  - sans bilan d'hier, le squelette du bilan disparaissait et l'écran
+    remontait ;
+  - « Grandes compétitions » se montrait sous le squelette, puis était
+    chassé hors de l'écran.
+- Désormais, l'accueil montre ses squelettes jusqu'à ce que les réponses du
+  haut soient arrivées, puis s'affiche d'un coup. Ces réponses sont : les
+  pronostics du jour, le prochain pronostic, le bilan d'hier, le code promo,
+  les matchs suivis et, pour un abonné, le bilan sur 30 jours. Si l'une
+  d'elles traîne, il s'affiche quand même au bout de 4 secondes. Après un
+  rafraîchissement, il ne revient pas au squelette.
 
 ## La courbe du résultat net (page Bankroll)
 
