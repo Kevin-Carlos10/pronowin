@@ -169,6 +169,17 @@ void main() {
       expect(find.byKey(const Key('combine-entete-c1')), findsOneWidget);
     });
 
+    testWidgets('ouvert depuis une notification, sans historique : le retour remonte à la bankroll', (t) async {
+      await monterRoute(t, '/bankroll/combine/c1', overrides: [
+        bankrollProvider.overrideWith((ref) async => bankroll([combine()])),
+        couvertureCombineProvider('c1').overrideWith((ref) async => {'disponible': false, 'raison': 'pas_encore'}),
+      ]);
+      expect(find.byKey(const Key('combine-retour')), findsOneWidget);
+      await t.tap(find.byKey(const Key('combine-retour')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('bankroll-combines')), findsOneWidget);
+    });
+
     testWidgets('une sélection libre se règle à la main', (t) async {
       serveur.reponse = (_) => {'result': null};
       await monterRoute(t, '/bankroll/combine/c1', overrides: [

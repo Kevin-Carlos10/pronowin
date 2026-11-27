@@ -406,10 +406,23 @@ class CombineDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final chargement = ref.watch(bankrollProvider).isLoading;
     final c = ref.watch(combineProvider(id));
-    return Scaffold(
+    // Le retour du téléphone aussi : sans historique, il remonte à la bankroll
+    // au lieu de quitter l'app.
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (aQuitte, _) { if (!aQuitte) context.go('/bankroll'); },
+      child: Scaffold(
       backgroundColor: context.cl.bg,
       appBar: AppBar(
         backgroundColor: context.cl.bg, elevation: 0, scrolledUnderElevation: 0,
+        // Ouvert depuis une notification, l'écran n'a pas d'historique : sans
+        // ce bouton, aucune flèche, et le retour du téléphone quittait l'app.
+        leading: IconButton(
+          key: const Key('combine-retour'),
+          tooltip: tr(context, "Retour"),
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => retourOuAller(context, repli: '/bankroll'),
+        ),
         title: Text(tr(context, "Combiné"), style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
         iconTheme: IconThemeData(color: context.cl.textP),
       ),
@@ -418,7 +431,7 @@ class CombineDetailPage extends ConsumerWidget {
               ? const CircularProgressIndicator()
               : Text(tr(context, "Combiné introuvable."), style: TextStyle(color: context.cl.textM)))
           : _DetailCombine(combine: c),
-    );
+    ));
   }
 }
 
