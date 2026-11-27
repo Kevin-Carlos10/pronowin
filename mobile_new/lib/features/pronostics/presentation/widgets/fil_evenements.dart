@@ -483,6 +483,51 @@ String abregerJoueur(String nom) {
   return '$initiale $reste';
 }
 
+/// Les noms possibles d'un buteur, du plus complet au plus court :
+/// « M. Gibbs-White », puis « Gibbs-White ».
+List<String> variantesNomButeur(String joueur) {
+  final abrege = abregerJoueur(joueur);
+  final seul = RegExp(r'^\S+\.\s+(.+)$').firstMatch(abrege)?.group(1);
+  return [abrege, if (seul != null && seul != abrege) seul];
+}
+
+/// Un buteur sur une ligne de l'en-tête : les minutes entières, et le nom le
+/// plus complet qui tient à côté.
+///
+/// L'abréviation seule ne suffisait pas : à côté de « 51' (pen.), 72' », il
+/// ne restait de « M. Gibbs-White » que « M. ... » (capture du 27 novembre
+/// 2026). Le nom de famille seul se lit ; une initiale suivie de points de
+/// suspension, non.
+class LigneButeur extends StatelessWidget {
+  final String joueur;
+  final String minutes;
+  final TextStyle style;
+  const LigneButeur({super.key, required this.joueur, required this.minutes, required this.style});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+    final echelle = MediaQuery.textScalerOf(context);
+    final sens = Directionality.of(context);
+    double largeur(String texte) {
+      final p = TextPainter(
+        text: TextSpan(text: texte, style: style), textDirection: sens, maxLines: 1, textScaler: echelle,
+      )..layout();
+      final l = p.width;
+      p.dispose();
+      return l;
+    }
+    final suffixe = ' $minutes';
+    final disponible = c.maxWidth - largeur(suffixe);
+    final variantes = variantesNomButeur(joueur);
+    final nom = variantes.firstWhere((v) => largeur(v) <= disponible, orElse: () => variantes.last);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Flexible(child: Text(nom, key: const Key('nom-buteur'),
+        maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
+      Text(suffixe, key: const Key('minutes-buteur'), maxLines: 1, style: style),
+    ]);
+  });
+}
+
 /// Les filtres du fil, comme « Tout / Événements clés » de Sofascore
 /// (10 novembre 2026).
 enum FiltreFil { tout, buts, cartons, remplacements }

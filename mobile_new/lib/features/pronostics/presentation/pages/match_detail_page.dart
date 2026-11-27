@@ -1137,11 +1137,11 @@ class _EnTeteRepliable extends ConsumerWidget {
                         if (i == _lignesButsMax - 1 && liste.length > _lignesButsMax)
                           Text(tr(context, "+{arg0} autres", [liste.length - _lignesButsMax + 1]),
                             maxLines: 1, style: styleBut)
-                        else ...[
-                          Flexible(child: Text(abregerJoueur(b.joueur),
-                            maxLines: 1, overflow: TextOverflow.ellipsis, style: styleBut)),
-                          Text(' ${b.minutes}', key: const Key('minutes-buteur'), maxLines: 1, style: styleBut),
-                        ],
+                        else
+                          // Le nom le plus complet qui tient à côté des
+                          // minutes : « M. Gibbs-White », sinon « Gibbs-White »
+                          // (27 novembre 2026, « M. ... » sur une capture).
+                          Flexible(child: LigneButeur(joueur: b.joueur, minutes: b.minutes, style: styleBut)),
                       ],
                     )),
                 ],
@@ -1517,18 +1517,42 @@ class _VerdictStripState extends State<_VerdictStrip>
     if (widget.result == PronosticResult.win) _peutEtreCelebrer();
   }
 
+  @override
+  void didUpdateWidget(covariant _VerdictStrip ancien) {
+    super.didUpdateWidget(ancien);
+    // Un résultat corrigé en « gagné » pendant que la fiche est ouverte : le
+    // bandeau ne doit pas rester à son point de départ.
+    if (widget.result == PronosticResult.win && ancien.result != PronosticResult.win) {
+      _peutEtreCelebrer();
+    }
+  }
+
   /// La célébration ne se joue qu'à la première consultation d'un pronostic
   /// gagnant — y revenir ne la rejoue pas.
   Future<void> _peutEtreCelebrer() async {
     final prefs = await SharedPreferences.getInstance();
     final cle   = '$_prefKey${widget.pronosticId}';
-    if ((prefs.getBool(cle) ?? false) || !mounted) return;
+    if (!mounted) return;
+    // Déjà célébré : le bandeau se montre dans son état final.
+    //
+    // Il restait à son point de départ — icône et « Pronostic gagnant »
+    // transparents, bandeau rétréci, reflet figé à gauche : une barre verte
+    // vide sur chaque pronostic gagnant revu (captures du 27 novembre 2026).
+    // L'animation ne se rejoue pas, mais sa fin doit s'afficher.
+    if (prefs.getBool(cle) ?? false) {
+      _c.value = 1;
+      return;
+    }
 
     // Marqué comme vu dans tous les cas, y compris en animations réduites :
     // sinon la célébration se déclencherait au premier changement de réglage,
     // sur un pronostic vieux de trois semaines.
     await prefs.setBool(cle, true);
-    if (!mounted || context.animationsReduites) return;
+    if (!mounted) return;
+    if (context.animationsReduites) {
+      _c.value = 1;
+      return;
+    }
 
     await Future.delayed(const Duration(milliseconds: 160));
     if (!mounted) return;
