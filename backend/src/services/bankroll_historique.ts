@@ -30,7 +30,8 @@ export type ResultatRegle = {
   mise: number;
 };
 
-type MiseLue = {
+/** Une mise telle que la base la rend, couverture comprise. */
+export type MiseLue = {
   result: string | null; profit: number | null; stakedAmount: number;
   settledAt: Date | null; createdAt: Date;
   couvertureEnregistree?: { result: string | null; profit: number | null; mise: number } | null;
@@ -38,7 +39,20 @@ type MiseLue = {
 
 const arrondi = (n: number) => Math.round(n * 100) / 100;
 
-function versResultat(genre: ResultatRegle['genre'], m: MiseLue): ResultatRegle | null {
+/**
+ * Les colonnes d'une mise que le calcul lit, couverture comprise : pour un
+ * `select` Prisma sur les paris comme sur les combinés.
+ */
+export const COLONNES_MISE = {
+  result: true, profit: true, stakedAmount: true, settledAt: true, createdAt: true,
+  couvertureEnregistree: { select: { result: true, profit: true, mise: true } },
+} as const;
+
+/**
+ * Le résultat d'une mise réglée, couverture comprise ; null si elle est en
+ * cours. Partagé avec la vue d'ensemble du panneau (28 novembre 2026).
+ */
+export function resultatDeMise(genre: ResultatRegle['genre'], m: MiseLue): ResultatRegle | null {
   if (m.result == null || m.profit == null) return null;
   const c = m.couvertureEnregistree;
   // La couverture se règle avec le match. Une couverture encore ouverte sur
@@ -69,8 +83,8 @@ export async function resultatsRegles(bankrollId: string): Promise<ResultatRegle
     }),
   ]);
   const liste: ResultatRegle[] = [];
-  for (const p of paris) { const r = versResultat('pari', p as MiseLue); if (r) liste.push(r); }
-  for (const c of combines) { const r = versResultat('combine', c as MiseLue); if (r) liste.push(r); }
+  for (const p of paris) { const r = resultatDeMise('pari', p as MiseLue); if (r) liste.push(r); }
+  for (const c of combines) { const r = resultatDeMise('combine', c as MiseLue); if (r) liste.push(r); }
   return liste.sort((a, b) => a.le.getTime() - b.le.getTime());
 }
 

@@ -15,7 +15,9 @@ jest.mock('../services/notification.service', () => ({
   NOTIF_CATEGORIES: [],
 }));
 
-import { getBankrollStats, placeBet, resumeParis, setBudget, settleBets } from '../services/bankroll.service';
+import {
+  getBankrollStats, listBankrolls, listBankrollsStats, placeBet, resumeParis, setBudget, settleBets,
+} from '../services/bankroll.service';
 import {
   bilanSemaine, courbeResultats, historiqueSolde, resultatsRegles, totaux,
 } from '../services/bankroll_historique';
@@ -212,5 +214,44 @@ describe('de bout en bout : les trois écrans disent la même chose que le bande
     await statistiquesProfil({ userId: 'personne' } as any, reponse);
     expect(reponse.status).not.toHaveBeenCalled();
     expect(reponse.json.mock.calls[0][0]).toMatchObject({ profit_net: 0, bankroll_history: [], pronostics_suivis: 0 });
+  });
+});
+
+describe("la vue d'ensemble du panneau (28 novembre 2026)", () => {
+  function avecUnPortefeuilleEnEuros() {
+    poserHistorique();
+    _base.users.set('u1', { id: 'u1', pseudo: 'Parieur' });
+    _base.users.set('u2', { id: 'u2', pseudo: 'Parieuse' });
+    _base.bankrolls.set('b2', { id: 'b2', userId: 'u2', totalBudget: 100, currentBalance: 105.5, currency: 'EUR' });
+    _base.bankrollBets.set('e1', {
+      id: 'e1', bankrollId: 'b2', pronosticId: 'p-e1', stakedAmount: 10, suggestedAmount: 10, oddsUsed: 1.55,
+      potentialGain: 15.5, result: 'WIN', profit: 5.5, settledAt: ilYa(1), createdAt: ilYa(2),
+    });
+  }
+
+  it('les totaux par devise, combinés et couvertures compris', async () => {
+    avecUnPortefeuilleEnEuros();
+    const st = await listBankrollsStats();
+    // Les francs et les euros ne s'additionnent plus.
+    expect(st.devises).toEqual([
+      { devise: 'XOF', bankrolls: 1, total_budget: 10000, total_balance: 12100, total_profit: 2100, roi: 50 },
+      { devise: 'EUR', bankrolls: 1, total_budget: 100, total_balance: 105.5, total_profit: 5.5, roi: 55 },
+    ]);
+    expect(st.combines).toEqual({ total: 3, en_attente: 1, gagnes: 1, perdus: 1 });
+    expect(st.couvertures).toEqual({ total: 2, en_attente: 0 });
+    // Le taux de réussite reste celui des sélections simples : 3 gagnées
+    // (b1, b4, e1) sur 4 tranchées.
+    expect(st.win_rate).toBe(75);
+  });
+
+  it('chaque portefeuille : profit et rendement avec ses combinés et ses couvertures', async () => {
+    avecUnPortefeuilleEnEuros();
+    const { data } = await listBankrolls({ page: 1, perPage: 20 });
+    const b1 = data.find((r) => r.user_id === 'u1')!;
+    expect(b1).toMatchObject({
+      total_profit: 2100, roi: 50, wins: 2, losses: 1, total_bets: 5, pending_bets: 1,
+      combines: 3, combines_en_attente: 1, couvertures: 2,
+    });
+    expect(data.find((r) => r.user_id === 'u2')).toMatchObject({ currency: 'EUR', total_profit: 5.5, combines: 0 });
   });
 });

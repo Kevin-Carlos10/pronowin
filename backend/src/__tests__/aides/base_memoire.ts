@@ -142,6 +142,20 @@ export function creerBase() {
    * autre relation revenait alors `null` en silence, et un banc bâti dessus
    * mesurait une règle à qui on n'avait rien donné à lire.
    */
+  /**
+   * Les relations qu'un `select` demande, traitées comme un `include` : Prisma
+   * les rend dans les deux cas. Sans cela, `select: { couvertureEnregistree:
+   * … }` rendait la ligne sans sa couverture, et un calcul qui la compte ne
+   * pouvait pas être éprouvé ici (28 novembre 2026).
+   */
+  const relationsDe = (select: any, liens: Liens): any => {
+    if (!select) return undefined;
+    const r: any = {};
+    for (const [nom, v] of Object.entries(select)) if (liens[nom] && v) r[nom] = v;
+    return Object.keys(r).length ? r : undefined;
+  };
+  const sousRelations = (opts: any, liens: Liens) => opts.include ?? relationsDe(opts.select, liens);
+
   const joindre = (ligne: any, include: any, liens: Liens): any => {
     if (!include) return ligne;
     const enrichie = { ...ligne };
@@ -153,7 +167,7 @@ export function creerBase() {
       if ('unSeul' in lien) {
         const opts = typeof include[nom] === 'object' ? include[nom] : {};
         const trouve = [...lien.vers.values()].find((x) => x[lien.cleEtrangere] === ligne.id);
-        enrichie[nom] = trouve ? joindre({ ...trouve }, opts.include, lien.liens ?? {}) : null;
+        enrichie[nom] = trouve ? joindre({ ...trouve }, sousRelations(opts, lien.liens ?? {}), lien.liens ?? {}) : null;
         continue;
       }
 
@@ -166,14 +180,14 @@ export function creerBase() {
         liste = ordonner(liste, opts.orderBy);
         if (typeof opts.take === 'number') liste = liste.slice(0, opts.take);
         enrichie[nom] = liste.map(
-          (x) => joindre({ ...x }, opts.include, lien.liens ?? {}));
+          (x) => joindre({ ...x }, sousRelations(opts, lien.liens ?? {}), lien.liens ?? {}));
         continue;
       }
 
       // Les relations imbriquées aussi : `bet.bankroll.user`, que lit le
       // règlement des paris.
       const cible = lien.vers.get(ligne[lien.cle]);
-      const sous = typeof include[nom] === 'object' ? include[nom].include : undefined;
+      const sous = typeof include[nom] === 'object' ? sousRelations(include[nom], lien.liens ?? {}) : undefined;
       enrichie[nom] = cible ? joindre({ ...cible }, sous, lien.liens ?? {}) : null;
     }
 
@@ -208,23 +222,24 @@ export function creerBase() {
       [...magasin.values()].filter((x) => correspond(x, where));
 
     return {
-      findUnique: async ({ where, include }: any) => {
+      findUnique: async ({ where, include, select }: any) => {
         const l = filtrer(where)[0];
-        return l ? joindre({ ...l }, include, liens) : null;
+        return l ? joindre({ ...l }, include ?? relationsDe(select, liens), liens) : null;
       },
-      findFirst: async ({ where, include, orderBy }: any = {}) => {
+      findFirst: async ({ where, include, select, orderBy }: any = {}) => {
         const l = ordonner(filtrer(where), orderBy)[0];
-        return l ? joindre({ ...l }, include, liens) : null;
+        return l ? joindre({ ...l }, include ?? relationsDe(select, liens), liens) : null;
       },
       // `skip` et `take` sont honorés : sans eux, un banc portant sur une
       // lecture paginée lisait tout, et ne pouvait donc pas distinguer un
       // calcul fait sur la page affichée d'un calcul fait sur l'ensemble —
       // précisément ce que `resume_paris.test.ts` doit mesurer.
-      findMany: async ({ where, include, orderBy, skip, take }: any = {}) => {
+      findMany: async ({ where, include, select, orderBy, skip, take }: any = {}) => {
         let lignes = ordonner(filtrer(where), orderBy);
         if (typeof skip === 'number') lignes = lignes.slice(skip);
         if (typeof take === 'number') lignes = lignes.slice(0, take);
-        return lignes.map((x) => joindre({ ...x }, include, liens));
+        const inc = include ?? relationsDe(select, liens);
+        return lignes.map((x) => joindre({ ...x }, inc, liens));
       },
       count: async ({ where }: any = {}) => filtrer(where).length,
       update: async ({ where, data }: any) => {
@@ -318,6 +333,12 @@ export function creerBase() {
           pronostic: { cle: 'pronosticId', vers: base.pronostics, liens: liensMatch },
           couvertureEnregistree: couvertureDe('pariId'),
         },
+      },
+      combines: {
+        plusieurs: true,
+        cleEtrangere: 'bankrollId',
+        vers: base.combines,
+        liens: { couvertureEnregistree: couvertureDe('combineId') },
       },
     }),
     bankrollBet:  table(base.bankrollBets, {

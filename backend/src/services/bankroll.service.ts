@@ -13,7 +13,9 @@ import {
   annulerSelectionsDuPronostic, notifierReglementsCombines, reglerSelectionsDuPronostic, type ReglementCombine,
 } from './combines.service';
 import { annulerCouverturesDuPronostic, reglerCouverturesDuPronostic } from './couvertures_enregistrees.service';
-import { resultatsRegles, totaux } from './bankroll_historique';
+import {
+  COLONNES_MISE, resultatDeMise, resultatsRegles, totaux, type MiseLue, type ResultatRegle,
+} from './bankroll_historique';
 
 const notifSvc = new NotificationService();
 
@@ -771,7 +773,10 @@ export async function listBankrolls(params: {
       where, orderBy, skip: (page - 1) * perPage, take: perPage,
       include: {
         user: { select: { id: true, pseudo: true, phoneNumber: true, email: true, avatarUrl: true } },
-        bets: { select: { result: true, profit: true, stakedAmount: true } },
+        // Les combinés et les couvertures aussi (28 novembre 2026) : le profit
+        // et le rendement d'un portefeuille les comptent, comme dans l'app.
+        bets:     { select: COLONNES_MISE },
+        combines: { select: COLONNES_MISE },
       },
     }),
     prisma.userBankroll.count({ where }),
@@ -781,8 +786,8 @@ export async function listBankrolls(params: {
     const settled  = b.bets.filter(bet => bet.result !== null);
     const decisive = settled.filter(bet => bet.result !== 'PUSH');
     const wins     = decisive.filter(bet => bet.result === 'WIN').length;
-    const totalProfit = settled.reduce((sum, bet) => sum + (bet.profit ?? 0), 0);
-    const totalStaked = decisive.reduce((sum, bet) => sum + bet.stakedAmount, 0);
+    const regles = reglesDe(b.bets, b.combines);
+    const { profit: totalProfit, mise: totalStaked } = totaux(regles);
 
     return {
       user_id:         b.userId,
@@ -800,6 +805,9 @@ export async function listBankrolls(params: {
       win_rate:         decisive.length > 0 ? parseFloat(((wins / decisive.length) * 100).toFixed(1)) : null,
       total_profit:     parseFloat(totalProfit.toFixed(2)),
       roi:              totalStaked > 0 ? parseFloat(((totalProfit / totalStaked) * 100).toFixed(1)) : null,
+      combines:            b.combines.length,
+      combines_en_attente: b.combines.filter(c => c.result === null).length,
+      couvertures:         [...b.bets, ...b.combines].filter(m => m.couvertureEnregistree != null).length,
       last_reset_at:    b.lastResetAt,
       created_at:       b.createdAt,
     };
@@ -818,33 +826,96 @@ export async function listBankrolls(params: {
  * ligne.
  */
 export async function listBankrollsStats() {
-  const [agg, bets] = await Promise.all([
-    prisma.userBankroll.aggregate({
-      _count: { _all: true },
-      _sum:   { totalBudget: true, currentBalance: true },
-    }),
-    prisma.bankrollBet.findMany({ select: { result: true, profit: true, stakedAmount: true } }),
+  const [bankrolls, paris, combinesTous] = await Promise.all([
+    prisma.userBankroll.findMany({ select: { id: true, currency: true, totalBudget: true, currentBalance: true } }),
+    prisma.bankrollBet.findMany({ select: { bankrollId: true, ...COLONNES_MISE } }),
+    prisma.bankrollCombine.findMany({ select: { bankrollId: true, ...COLONNES_MISE } }),
   ]);
 
-  const settled  = bets.filter(b => b.result !== null);
+  // Le taux de réussite juge les sélections simples, comme dans l'app.
+  const settled  = paris.filter(b => b.result !== null);
   const decisive = settled.filter(b => b.result !== 'PUSH');   // PUSH = mise rendue
   const wins     = decisive.filter(b => b.result === 'WIN').length;
-  const profit   = settled.reduce((s, b) => s + (b.profit ?? 0), 0);
-  const staked   = decisive.reduce((s, b) => s + b.stakedAmount, 0);
 
+  // Par devise (28 novembre 2026) : les totaux additionnaient des francs CFA
+  // et des euros, et la page ne pouvait leur donner aucune unité.
+  const deviseDe = new Map(bankrolls.map(b => [b.id, b.currency]));
+  const parDevise = new Map<string, {
+    devise: string; bankrolls: number; budget: number; solde: number; regles: ResultatRegle[];
+  }>();
+  const groupe = (devise: string) => {
+    let g = parDevise.get(devise);
+    if (!g) parDevise.set(devise, g = { devise, bankrolls: 0, budget: 0, solde: 0, regles: [] });
+    return g;
+  };
+  for (const b of bankrolls) {
+    const g = groupe(b.currency);
+    g.bankrolls++;
+    g.budget += b.totalBudget;
+    g.solde  += b.currentBalance;
+  }
+  const toutes: ResultatRegle[] = [];
+  const ranger = (genre: ResultatRegle['genre'], m: MiseLue & { bankrollId: string }) => {
+    const r = resultatDeMise(genre, m);
+    if (!r) return;
+    toutes.push(r);
+    groupe(deviseDe.get(m.bankrollId) ?? 'XOF').regles.push(r);
+  };
+  for (const m of paris) ranger('pari', m);
+  for (const m of combinesTous) ranger('combine', m);
+
+  const rendement = (t: { profit: number; mise: number }) =>
+    t.mise > 0 ? +((t.profit / t.mise) * 100).toFixed(1) : null;
+  const devises = [...parDevise.values()]
+    .map(g => {
+      const t = totaux(g.regles);
+      return {
+        devise:        g.devise,
+        bankrolls:     g.bankrolls,
+        total_budget:  soldeExact(g.budget, g.devise),
+        total_balance: soldeExact(g.solde, g.devise),
+        total_profit:  soldeExact(t.profit, g.devise),
+        roi:           rendement(t),
+      };
+    })
+    .sort((a, b) => b.bankrolls - a.bankrolls);
+
+  const global = totaux(toutes);
+  const couvertes = [...paris, ...combinesTous].map(m => m.couvertureEnregistree).filter(c => c != null);
   return {
-    bankrolls:     agg._count._all,
-    total_budget:  Math.round(agg._sum.totalBudget    ?? 0),
-    total_balance: Math.round(agg._sum.currentBalance ?? 0),
-    total_bets:    bets.length,
-    pending_bets:  bets.length - settled.length,
+    bankrolls:     bankrolls.length,
+    // Toutes devises confondues : gardés pour les versions du panneau qui les
+    // lisent encore. La page affiche `devises`.
+    total_budget:  Math.round(bankrolls.reduce((n, b) => n + b.totalBudget, 0)),
+    total_balance: Math.round(bankrolls.reduce((n, b) => n + b.currentBalance, 0)),
+    total_bets:    paris.length,
+    pending_bets:  paris.length - settled.length,
     wins, losses:  decisive.length - wins,
     // Sur zéro pari réglé, un « 0 % » se lirait comme un mauvais résultat
     // alors qu'il n'y a simplement rien à mesurer : on renvoie null.
     win_rate:      decisive.length > 0 ? +((wins / decisive.length) * 100).toFixed(1) : null,
-    total_profit:  Math.round(profit),
-    roi:           staked > 0 ? +((profit / staked) * 100).toFixed(1) : null,
+    total_profit:  Math.round(global.profit),
+    roi:           rendement(global),
+    devises,
+    combines: {
+      total:      combinesTous.length,
+      en_attente: combinesTous.filter(c => c.result === null).length,
+      gagnes:     combinesTous.filter(c => c.result === 'WIN').length,
+      perdus:     combinesTous.filter(c => c.result === 'LOSS').length,
+    },
+    couvertures: {
+      total:      couvertes.length,
+      en_attente: couvertes.filter(c => c!.result === null).length,
+    },
   };
+}
+
+/** Les mises réglées d'un portefeuille, simples et combinées. */
+function reglesDe(paris: MiseLue[], combinesListe: MiseLue[]): ResultatRegle[] {
+  const liste: ResultatRegle[] = [];
+  for (const m of paris) { const r = resultatDeMise('pari', m); if (r) liste.push(r); }
+  for (const m of combinesListe) { const r = resultatDeMise('combine', m); if (r) liste.push(r); }
+  return liste;
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────────

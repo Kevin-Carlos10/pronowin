@@ -319,11 +319,13 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
     ]);
     // Le journal des mouvements (B1) : ce qui permet de répondre à une
     // contestation, et la preuve qu'aucune écriture n'est passée à côté.
-    const [journal, mouvements] = bankroll ? await Promise.all([
+    const [journal, mouvements, listeCombines] = bankroll ? await Promise.all([
       svc.verifierMouvements(bankroll.id),
       prisma.bankrollMouvement.findMany({
         where: { bankrollId: bankroll.id }, orderBy: { creeLe: 'desc' }, take: 50 }),
-    ]) : [null, []];
+      // Les combinés du compte (28 novembre 2026), au format de l'app.
+      combines.lireCombines(bankroll.id),
+    ]) : [null, [], []];
 
     res.json({
       user,
@@ -367,7 +369,10 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
         prediction_label_en: b.pronostic.predictionLabelEn ?? null,
           confidence_score: b.pronostic.confidenceScore,
           confidence_pct: pourcentageConfiance(b.pronostic),
+          // La mise sur l'inverse, si l'abonné l'a enregistrée.
+          couverture_enregistree: couverturePourApi(b.couvertureEnregistree),
         })),
+        combines: listeCombines.map(combinePourApi),
       } : null,
       stats,
     });
