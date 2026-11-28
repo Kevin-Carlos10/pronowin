@@ -1332,3 +1332,35 @@ html.light[data-accent="pink"] { --primary: #BE185D; }
 .traduction-en-aide { margin: 0 0 .75rem; font-size: var(--fs-xs); color: var(--text-m); line-height: 1.5; }
 /* L'avertissement du direct, dans le résumé du match sous 1 180 px. */
 .pf-resume-direct { display: flex; align-items: center; gap: .35rem; font-size: var(--fs-xs); color: var(--on-danger); }
+
+/* Groupes repliables du menu (28 novembre 2026) : l'en-tête de groupe garde
+   l'allure du séparateur d'avant, mais il se touche, et une flèche dit qu'il
+   s'ouvre. Au doigt, il fait 44 px de haut. */
+.nav-groupe > summary { list-style: none; cursor: pointer; min-height: 32px; user-select: none; }
+.nav-groupe > summary::-webkit-details-marker { display: none; }
+.nav-groupe > summary::after { order: 1; }
+.nav-groupe > summary .nav-chevron { order: 2; width: 12px; height: 12px; flex-shrink: 0; transform: rotate(-90deg); transition: transform .15s; }
+.nav-groupe[open] > summary .nav-chevron { transform: none; }
+.nav-groupe > summary:hover { color: var(--text-m); }
+.nav-groupe > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 6px; }
+@media (pointer: coarse) { .nav-groupe > summary { min-height: 44px; } }
+
+/* Bankroll du panneau (28 novembre 2026) : huit tuiles en deux rangées de
+   quatre, assez larges pour un montant et son unité ; les autres devises et
+   les combinés en petit dessous. */
+@media (min-width: 1100px) { .bankroll-cr-metrics { grid-template-columns: repeat(4, 1fr); } }
+.bk-unite { margin-left: .05em; font-size: .5em; font-weight: 700; letter-spacing: 0; color: var(--text-m); }
+.bk-autres { margin-top: .35rem; font-size: var(--fs-xs); line-height: 1.5; color: var(--text-m); }
+.bk-sous { display: block; margin-top: 2px; font-size: 11px; color: var(--text-m); }
+/* Fiche d'une bankroll : les sélections d'un combiné, une par ligne. */
+.bk-selections { margin: 0; padding: 0; list-style: none; }
+.bk-selections li { display: flex; gap: .4rem; align-items: baseline; flex-wrap: wrap; padding: 2px 0; font-size: 12px; color: var(--text); }
+.bk-selections .bk-sel-match { font-weight: 600; }
+.bk-selections .bk-sel-choix { color: var(--text-m); }
+.bk-selections .bk-sel-etat { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--text-m); }
+.bk-selections .bk-sel-etat.gagne { color: var(--on-success); }
+.bk-selections .bk-sel-etat.perdu { color: var(--on-danger); }
+.bk-couverture { display: inline-flex; gap: .3rem; align-items: center; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--surface-d); color: var(--text-m); }
+.bk-carte { margin-top: 1rem; padding: 0; overflow: hidden; }
+.bk-carte-tete { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.bk-carte-tete h3 { font-size: .95rem; font-weight: 700; }

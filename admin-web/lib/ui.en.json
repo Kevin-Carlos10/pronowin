@@ -202,5 +202,12 @@
   "renseignée": "filled in",
   "facultative": "optional",
   "Libellé affiché, en anglais": "Displayed label, in English",
-  "Note analyste, en anglais": "Analyst note, in English"
+  "Note analyste, en anglais": "Analyst note, in English",
+  "Au quotidien": "Daily",
+  "Suivi": "Monitoring",
+  "Ventes": "Sales",
+  "Combinés": "Accumulators",
+  "Couvertures": "Hedges",
+  "Sélections": "Selections",
+  "En cours": "Open"
 }

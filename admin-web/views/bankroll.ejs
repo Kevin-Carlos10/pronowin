@@ -8,6 +8,18 @@
   const _filterQs = qParam({ search, sort_by: sortBy, sort_dir: sortDir });
   const _st       = locals.stats ?? null;
   const fmtN      = n => Math.round(n ?? 0).toLocaleString('fr-FR');
+  // Les totaux par devise (28 novembre 2026) : ils additionnaient des francs
+  // CFA et des euros, sans unité possible. La devise la plus suivie est en
+  // grand ; les autres en dessous.
+  const _unite    = d => ({ XOF: 'FCFA', XAF: 'FCFA', GNF: 'GNF', EUR: '€' })[d] ?? d;
+  const fmtD      = (n, d) => d === 'EUR'
+    ? (n ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    : fmtN(n);
+  const _devises  = (_st && Array.isArray(_st.devises) && _st.devises.length) ? _st.devises : null;
+  const _dp       = _devises ? _devises[0] : null;
+  const _autres   = _devises ? _devises.slice(1) : [];
+  const _signe    = n => (n ?? 0) >= 0 ? '+' : '';
+  const _pf       = (n) => n === 1 ? '' : 's';
 %>
 
 <style>
@@ -58,29 +70,57 @@
 <div class="stats-grid metric-grid bankroll-cr-metrics">
   <div class="stat-card metric-card s-blue">
     <div class="lbl">Budget confié</div>
+    <% if (_dp) { %>
+    <div class="val"><%= fmtD(_dp.total_budget, _dp.devise) %> <span class="bk-unite"><%= _unite(_dp.devise) %></span></div>
+    <% _autres.forEach(d => { %><div class="bk-autres">+ <%= fmtD(d.total_budget, d.devise) %> <%= _unite(d.devise) %> · <%= d.bankrolls %> portefeuille<%= _pf(d.bankrolls) %></div><% }) %>
+    <% } else { %>
     <div class="val"><%= fmtN(_st.total_budget) %></div>
+    <% } %>
   </div>
   <div class="stat-card metric-card s-teal">
     <div class="lbl">Encours actuel</div>
+    <% if (_dp) { %>
+    <div class="val"><%= fmtD(_dp.total_balance, _dp.devise) %> <span class="bk-unite"><%= _unite(_dp.devise) %></span></div>
+    <% _autres.forEach(d => { %><div class="bk-autres">+ <%= fmtD(d.total_balance, d.devise) %> <%= _unite(d.devise) %></div><% }) %>
+    <% } else { %>
     <div class="val"><%= fmtN(_st.total_balance) %></div>
+    <% } %>
   </div>
-  <div class="stat-card metric-card <%= (_st.total_profit ?? 0) >= 0 ? 's-green' : 's-red' %>">
+  <% const _profitP = _dp ? _dp.total_profit : (_st.total_profit ?? 0); %>
+  <div class="stat-card metric-card <%= _profitP >= 0 ? 's-green' : 's-red' %>">
     <div class="lbl">Résultat global</div>
-    <div class="val" style="color:var(--<%= (_st.total_profit ?? 0) >= 0 ? 'on-success' : 'on-danger' %>)">
-      <%= (_st.total_profit ?? 0) >= 0 ? '+' : '' %><%= fmtN(_st.total_profit) %>
+    <div class="val <%= _profitP >= 0 ? 'bankroll-cr-positive' : 'bankroll-cr-negative' %>">
+      <%= _signe(_profitP) %><%= _dp ? fmtD(_profitP, _dp.devise) : fmtN(_profitP) %><% if (_dp) { %> <span class="bk-unite"><%= _unite(_dp.devise) %></span><% } %>
     </div>
+    <% _autres.forEach(d => { %><div class="bk-autres"><%= _signe(d.total_profit) %><%= fmtD(d.total_profit, d.devise) %> <%= _unite(d.devise) %></div><% }) %>
   </div>
+  <% const _roiP = _dp ? _dp.roi : _st.roi; %>
   <div class="stat-card metric-card s-purple">
     <div class="lbl">ROI moyen</div>
-    <div class="val"><%= _st.roi === null ? '—' : (_st.roi >= 0 ? '+' : '') + _st.roi + '%' %></div>
+    <div class="val"><%= _roiP === null || _roiP === undefined ? '—' : _signe(_roiP) + _roiP + '%' %></div>
+    <% _autres.forEach(d => { %><div class="bk-autres"><%= _unite(d.devise) %> : <%= d.roi === null ? '—' : _signe(d.roi) + d.roi + ' %' %></div><% }) %>
   </div>
   <div class="stat-card metric-card s-orange">
     <div class="lbl"><%= uiText("Taux de réussite") %></div>
     <div class="val"><%= _st.win_rate === null ? '—' : _st.win_rate + '%' %></div>
+    <div class="bk-autres">Paris simples</div>
   </div>
   <div class="stat-card metric-card <%= _st.pending_bets > 0 ? 's-orange' : 's-blue' %>">
     <div class="lbl">Paris en attente</div>
     <div class="val"><%= fmtN(_st.pending_bets) %></div>
+  </div>
+  <%# Les combinés et les couvertures enregistrées (1.0.42) : ils entrent dans
+      le résultat et le rendement ci-dessus, et se comptent ici. %>
+  <% const _cb = _st.combines || null, _cv = _st.couvertures || null; %>
+  <div class="stat-card metric-card s-purple">
+    <div class="lbl"><%= uiText("Combinés") %></div>
+    <div class="val"><%= _cb ? fmtN(_cb.total) : '—' %></div>
+    <% if (_cb && _cb.total > 0) { %><div class="bk-autres"><%= _cb.en_attente %> en cours · <%= _cb.gagnes %> gagné<%= _pf(_cb.gagnes) %> · <%= _cb.perdus %> perdu<%= _pf(_cb.perdus) %></div><% } %>
+  </div>
+  <div class="stat-card metric-card s-teal">
+    <div class="lbl"><%= uiText("Couvertures") %></div>
+    <div class="val"><%= _cv ? fmtN(_cv.total) : '—' %></div>
+    <% if (_cv && _cv.total > 0) { %><div class="bk-autres"><%= _cv.en_attente %> en cours</div><% } %>
   </div>
 </div>
 <aside class="cr-callout" aria-label="État des paris en attente">
@@ -144,7 +184,7 @@
             <th scope="col" class="num"><%= uiText("Paris") %></th>
             <th scope="col" class="num"><%= uiText("Réussite") %></th>
             <th scope="col" class="num">Profit</th>
-            <th scope="col" class="num" title="Profit rapporté au total misé sur les paris tranchés">ROI</th>
+            <th scope="col" class="num" title="Profit rapporté au total misé sur les paris, combinés et couvertures tranchés">ROI</th>
             <th scope="col" class="col-act">Actions</th>
           </tr>
         </thead>
@@ -161,14 +201,17 @@
             </div>
           </td>
           <td class="num <%= b.current_balance >= b.total_budget ? 'bankroll-cr-positive' : '' %>" style="font-weight:700">
-            <%= fmtN(b.current_balance) %>
+            <%= fmtD(b.current_balance, b.currency) %>
             <div style="font-size:10px;color:var(--text-m);font-weight:400"><%= b.currency %></div>
           </td>
-          <td class="num" style="color:var(--text-m)"><%= fmtN(b.total_budget) %></td>
+          <td class="num" style="color:var(--text-m)"><%= fmtD(b.total_budget, b.currency) %></td>
           <td class="num">
             <%= b.total_bets %>
             <% if(b.pending_bets > 0){ %>
               <div style="font-size:10px;color:var(--on-warning)"><%= b.pending_bets %> en attente</div>
+            <% } %>
+            <% if(b.combines > 0 || b.couvertures > 0){ %>
+              <span class="bk-sous"><%= [b.combines > 0 ? b.combines + ' combiné' + _pf(b.combines) : null, b.couvertures > 0 ? b.couvertures + ' couverture' + _pf(b.couvertures) : null].filter(Boolean).join(' · ') %></span>
             <% } %>
           </td>
           <td class="num">
@@ -181,7 +224,7 @@
             <% } %>
           </td>
           <td class="num" style="font-weight:600;color:var(--<%= b.total_profit >= 0 ? 'on-success' : 'on-danger' %>)">
-            <%= b.total_profit >= 0 ? '+' : '' %><%= fmtN(b.total_profit) %>
+            <%= b.total_profit >= 0 ? '+' : '' %><%= fmtD(b.total_profit, b.currency) %>
           </td>
           <td class="num">
             <% if(b.roi === null){ %>

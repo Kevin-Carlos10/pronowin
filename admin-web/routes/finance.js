@@ -40,12 +40,15 @@ module.exports = (app, ctx) => {
         Math.round(b.total_budget), Math.round(b.current_balance), b.currency,
         b.total_bets, b.pending_bets, b.wins, b.losses,
         b.win_rate ?? '', Math.round(b.total_profit), b.roi ?? '',
+        // Les combinés et les couvertures (28 novembre 2026) : le profit et le
+        // ROI les comptent, l'export doit dire combien il y en a.
+        b.combines ?? '', b.couvertures ?? '',
         b.created_at ? new Date(b.created_at).toISOString().slice(0, 10) : '',
       ]);
       logAction(req, 'bankroll_exported', `${rows.length} ligne(s)`, { count: rows.length, search });
       sendCSV(res, `bankrolls_${new Date().toISOString().slice(0,10)}.csv`,
         ['Pseudo','Téléphone','Email','Budget','Solde','Devise','Paris','En attente',
-         'Gagnés','Perdus','Taux réussite %','Profit','ROI %','Créé le'], rows);
+         'Gagnés','Perdus','Taux réussite %','Profit','ROI %','Combinés','Couvertures','Créé le'], rows);
     } catch (e) {
       res.redirect('/admin/bankroll?error=' + encodeURIComponent('Export impossible : ' + (e.response?.data?.message ?? e.message)));
     }

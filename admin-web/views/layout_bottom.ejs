@@ -22,6 +22,28 @@ window.addEventListener('resize', () => {
   if (window.innerWidth > 900) closeSidebar();
 });
 
+/* ── Groupes du menu : l'état choisi est gardé (28 novembre 2026) ──
+   Le groupe de la page affichée reste ouvert, pour que l'entrée active se
+   voie ; les autres reprennent l'état laissé par l'administrateur. */
+(function navGroupes() {
+  const CLE = 'admin_nav_groupes';
+  let etat = {};
+  try { etat = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; } catch (_) { etat = {}; }
+  document.querySelectorAll('details.nav-groupe').forEach(function (d) {
+    const g = d.dataset.groupe;
+    // Le groupe de la page affichée est ouvert d'office : son état n'est pas
+    // gardé. Sans cela, chaque visite l'enregistrait comme ouvert, et le menu
+    // finissait tout déplié à force de naviguer.
+    const actif = !!d.querySelector('.nav-item.active');
+    if (!actif && typeof etat[g] === 'boolean') d.open = etat[g];
+    d.addEventListener('toggle', function () {
+      if (actif) return;
+      etat[g] = d.open;
+      try { localStorage.setItem(CLE, JSON.stringify(etat)); } catch (_) {}
+    });
+  });
+})();
+
 /* ── Swipe pour fermer la sidebar (mobile) ── */
 (function initSwipe() {
   let startX = 0, startY = 0, dragging = false;
