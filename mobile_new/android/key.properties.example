@@ -1,0 +1,34 @@
+# Cle de signature de publication — MODELE.
+#
+# Copiez ce fichier en `android/key.properties` et renseignez vos valeurs.
+# Le vrai fichier est ignore par git, comme le magasin de cles (*.jks).
+#
+# ─── Creer la cle (une seule fois, et pour toujours) ─────────────────────────
+#
+#   keytool -genkey -v -keystore %USERPROFILE%\pronowin-release.jks ^
+#     -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias pronowin
+#
+# ATTENTION : cette cle est definitive.
+#
+# Google Play lie l'identite de l'application a la premiere cle utilisee. La
+# perdre signifie ne plus jamais pouvoir publier de mise a jour sous le meme
+# identifiant — il faudrait republier une nouvelle fiche et repartir de zero.
+# Sauvegardez le fichier .jks ET les mots de passe hors de cette machine.
+#
+# ─── Apres la creation ───────────────────────────────────────────────────────
+#
+# Relevez l'empreinte SHA-1 du PAQUET produit (pas du magasin de cles) et
+# enregistrez-la dans la console Firebase, sinon la connexion Google echouera
+# en production :
+#
+#   powershell -File tool/empreinte_signature.ps1
+#
+# ─── Valeurs ─────────────────────────────────────────────────────────────────
+
+# Chemin absolu vers le magasin de cles. Sous Windows, doublez les antislashs
+# ou utilisez des barres obliques.
+storeFile=C:/Users/VOTRE_NOM/pronowin-release.jks
+
+storePassword=REMPLACER
+keyAlias=pronowin
+keyPassword=REMPLACER

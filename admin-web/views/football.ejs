@@ -1,0 +1,187 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'football'}) %>
+
+<style>
+.fo-tuiles   { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.fo-tuile    { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px; padding: .85rem 1rem; }
+.fo-tuile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fo-tuile .l { font-size: .72rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+.fo-dim      { color: var(--text-dim); }
+.fo-ok       { color: var(--on-success); }
+.fo-warn     { color: var(--on-warning); }
+.fo-err      { color: var(--on-danger); }
+.fo-titre    { margin: 1.6rem 0 .8rem; font-size: 1rem; }
+.fo-titre small { font-weight: 400; color: var(--text-dim); font-size: .78rem; }
+.fo-carte    { padding: 0; overflow: hidden; }
+.fo-graph    { padding: 1rem 1.1rem .8rem; }
+.fo-barres   { display: block; width: 100%; height: 180px; }
+.fo-barres .b      { fill: var(--on-info); }
+.fo-barres .b.jour { fill: var(--primary-texte); }
+.fo-barres .b.vide { fill: var(--border); }
+.fo-barres .lim    { stroke: var(--on-danger); stroke-width: 1; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.fo-axe      { display: flex; justify-content: space-between; font-size: .7rem; color: var(--text-dim); margin-top: .4rem; }
+.fo-tab      { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.fo-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.fo-tab td   { padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.fo-tab tr:last-child td { border-bottom: 0; }
+.fo-num      { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fo-sous     { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; }
+.fo-mono     { display: block; font-family: monospace; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; }
+.fo-aide     { padding: .85rem 1.1rem; margin-top: 1.2rem; }
+.fo-aide p   { margin: 0; font-size: .8rem; color: var(--text-m); line-height: 1.65; }
+.empty-state.fo-vide { padding: 2rem; }
+@media (max-width: 760px) {
+  .fo-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+
+<%
+  const _d   = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
+  const _err = typeof erreur !== 'undefined' ? erreur : null;
+  const _lib = (typeof libelleFamille === 'function') ? libelleFamille : (f => f);
+  const _n   = v => v === null || v === undefined ? '—' : Number(v).toLocaleString('fr-FR');
+  const _pc  = (a, b) => a === null || a === undefined || !b ? null : Math.round((a / b) * 100);
+  const _depuis = iso => {
+    if (!iso) return 'jamais';
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    return m < 1 ? "à l'instant" : m < 60 ? `il y a ${m} min` : `il y a ${Math.round(m / 60)} h`;
+  };
+  const _jourCourt = j => new Date(j + 'T00:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Exploitation · fournisseur de données</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Consommation de l'API football</h1>
+    <p class="workspace-description">
+      Scores, cotes, compositions, fiches joueurs : tout vient d'API-Football, dans la limite d'un nombre
+      de requêtes par jour. Le compteur repart de zéro à minuit UTC — minuit à Ouagadougou.
+    </p>
+  </div>
+</header>
+
+<% if (!_d) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire la consommation<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else {
+  const a = _d.aujourdhui;
+  const utilise = a.fournisseur ?? a.serveur;
+  const pctUtilise = _pc(utilise, a.limite);
+  const pctProj = _pc(a.projection, a.limite);
+  const clsProj = pctProj === null ? '' : pctProj >= 100 ? 'fo-err' : pctProj >= 85 ? 'fo-warn' : 'fo-ok';
+  const mesures = _d.jours.filter(j => j.mesure);
+  const haut = Math.max(1, a.limite ?? 0, ..._d.jours.map(j => j.fournisseur ?? j.serveur)) * 1.08;
+  const seuil = a.limite ?? mesures.map(j => j.limite).find(Boolean) ?? null;
+  // Une ligne par famille vue sur sept jours, avec sa part du jour.
+  const auj = new Map(_d.familles.aujourdhui.map(f => [f.famille, f]));
+%>
+
+<div class="fo-tuiles metric-grid">
+  <div class="fo-tuile metric-card">
+    <div class="v"><%= _n(utilise) %></div>
+    <div class="l">requêtes utilisées aujourd'hui<br>
+      <span class="fo-dim"><%= a.limite ? 'sur ' + _n(a.limite) + (pctUtilise !== null ? ' · ' + pctUtilise + ' %' : '') : 'limite pas encore relevée' %></span></div>
+  </div>
+  <div class="fo-tuile metric-card">
+    <div class="v <%= a.restant !== null && a.limite && a.restant / a.limite < 0.1 ? 'fo-err' : '' %>"><%= _n(a.restant) %></div>
+    <div class="l">restantes<br><span class="fo-dim">relevé <%= _depuis(a.releveLe) %></span></div>
+  </div>
+  <div class="fo-tuile metric-card">
+    <div class="v <%= clsProj %>"><%= _n(a.projection) %></div>
+    <div class="l">prévues à minuit, à ce rythme<br>
+      <span class="fo-dim"><%= a.projection === null ? 'trop tôt dans la journée' : pctProj !== null ? pctProj + ' % de la limite' : '' %></span></div>
+  </div>
+  <div class="fo-tuile metric-card">
+    <div class="v"><%= _n(_d.moyenne7j) %></div>
+    <div class="l">par jour en moyenne<br><span class="fo-dim">7 derniers jours mesurés</span></div>
+  </div>
+</div>
+
+<% if (pctProj !== null && pctProj >= 85) { %>
+  <div class="alert <%= pctProj >= 100 ? 'alert-error' : 'alert-warning' %>" data-toast="skip"><div>
+    <strong><%= pctProj >= 100 ? 'À ce rythme, le quota sera épuisé avant minuit.' : 'Le quota sera presque épuisé à minuit.' %></strong>
+    Une fois à zéro, les scores et les cotes cessent de se mettre à jour jusqu'à minuit UTC. Le tableau
+    ci-dessous dit ce qui consomme le plus.
+  </div></div>
+<% } %>
+
+<% if (a.horsServeur !== null && a.horsServeur > Math.max(20, utilise * 0.05)) { %>
+  <div class="alert alert-warning" data-toast="skip"><div>
+    <strong><%= _n(a.horsServeur) %> requêtes aujourd'hui ne viennent pas de ce serveur.</strong>
+    Le fournisseur en compte <%= _n(a.fournisseur) %>, ce serveur <%= _n(a.serveur) %> : la même clé est utilisée
+    ailleurs — un poste de développement, par exemple. Ces requêtes sont prises sur le quota de production.
+  </div></div>
+<% } %>
+
+<h3 class="fo-titre"><%= uiText("30 derniers jours") %> <small>— requêtes par jour<%= seuil ? ', limite en pointillé' : '' %></small></h3>
+<div class="card cr-panel fo-graph">
+  <% if (!mesures.length) { %>
+    <div class="empty-state fo-vide">
+      <div class="empty-state-title">Pas encore de mesure</div>
+      <div class="empty-state-desc">Le comptage commence avec le premier appel au fournisseur après la mise en ligne.</div>
+    </div>
+  <% } else { %>
+  <svg class="fo-barres" viewBox="0 0 300 100" preserveAspectRatio="none" role="img"
+       aria-label="Requêtes par jour sur 30 jours, <%= _n(utilise) %> aujourd'hui">
+    <% _d.jours.forEach((j, i) => {
+         const v = j.fournisseur ?? j.serveur;
+         const h = j.mesure ? Math.max(1, (v / haut) * 100) : 1;
+         const cls = !j.mesure ? 'vide' : i === _d.jours.length - 1 ? 'jour' : ''; %>
+      <rect class="b <%= cls %>" x="<%= i * 10 + 1 %>" y="<%= 100 - h %>" width="8" height="<%= h %>">
+        <title><%= _jourCourt(j.jour) %> : <%= j.mesure ? _n(v) + ' requêtes' : 'pas de mesure' %></title>
+      </rect>
+    <% }) %>
+    <% if (seuil) { %><line class="lim" x1="0" x2="300" y1="<%= 100 - (seuil / haut) * 100 %>" y2="<%= 100 - (seuil / haut) * 100 %>"/><% } %>
+  </svg>
+  <div class="fo-axe"><span><%= _jourCourt(_d.jours[0].jour) %></span><span>aujourd'hui</span></div>
+  <% } %>
+</div>
+
+<h3 class="fo-titre">Ce qui consomme <small>— appels de ce serveur, par usage</small></h3>
+<% if (!_d.familles.septJours.length) { %>
+  <div class="card"><div class="empty-state fo-vide">
+    <div class="empty-state-title">Aucun appel compté sur 7 jours</div>
+  </div></div>
+<% } else { %>
+<div class="card cr-panel fo-carte">
+  <div class="table-wrap">
+  <table class="fo-tab">
+    <thead>
+      <tr><th scope="col">Usage</th><th scope="col">Aujourd'hui</th><th scope="col"><%= uiText("7 derniers jours") %></th><th scope="col">Par jour</th><th scope="col">Échecs</th></tr>
+    </thead>
+    <tbody>
+      <% _d.familles.septJours.forEach(f => { const t = auj.get(f.famille); %>
+      <tr>
+        <td><div><strong><%= _lib(f.famille) %></strong><% if (_lib(f.famille) !== f.famille) { %><span class="fo-mono"><%= f.famille %></span><% } %></div></td>
+        <td class="fo-num"><div><%= t ? _n(t.appels) : '—' %><% if (t) { %><span class="fo-sous"><%= t.part.toLocaleString('fr-FR') %> %</span><% } %></div></td>
+        <td class="fo-num"><div><%= _n(f.appels) %><span class="fo-sous"><%= f.part.toLocaleString('fr-FR') %> %</span></div></td>
+        <td class="fo-num"><div><%= _n(Math.round(f.appels / 7)) %></div></td>
+        <td class="fo-num <%= f.echecs ? 'fo-warn' : '' %>"><div><%= _n(f.echecs) %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+<% } %>
+
+<div class="card cr-panel cr-callout fo-aide">
+  <p>
+    <strong>Comment lire cette page.</strong>
+    Deux décomptes. Celui du fournisseur fait foi : il est relevé dans chacune de ses réponses, et c'est lui
+    qui coupe l'accès à zéro. Celui de ce serveur dit à quoi servent les requêtes ; il compte aussi les
+    appels en échec, que le fournisseur décompte également.
+    <br>
+    La mise à jour des scores tourne en continu : toutes les 30 secondes quand un match est en cours, toutes les
+    2 minutes sinon, jour et nuit. C'est d'ordinaire le premier poste.
+    Les fiches joueurs et équipes, les cotes et les compositions sont gardées en mémoire un moment, pour ne pas
+    redemander la même chose à chaque visite.
+  </p>
+</div>
+
+<% } %>
+
+<%- include('layout_bottom') %>

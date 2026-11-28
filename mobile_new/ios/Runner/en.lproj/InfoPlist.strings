@@ -1,0 +1,10 @@
+/*
+  Les fenêtres d'autorisation d'iOS, en anglais.
+
+  Le français est dans Info.plist : iOS l'affiche quand aucune traduction ne
+  correspond. Chaque clé NS…UsageDescription d'Info.plist doit figurer ici
+  (vérifié par test/ios_envoi_test.dart).
+*/
+"NSFaceIDUsageDescription" = "PronoWin uses Face ID to protect access to your account.";
+"NSPhotoLibraryUsageDescription" = "Select a screenshot of your payment to activate Premium.";
+"NSCameraUsageDescription" = "Take a photo of your payment confirmation to activate Premium.";

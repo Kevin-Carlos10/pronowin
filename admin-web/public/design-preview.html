@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<!--
+  MAQUETTE — socle consolidé de l'admin PronoWin.
+
+  Page statique, sans donnée réelle, servie sans authentification. Elle sert à
+  trancher avant d'engager la refonte : rien ici n'est branché sur le vrai
+  admin. À supprimer une fois la décision prise.
+
+  Elle charge le VRAI style.css : toutes les couleurs viennent des tokens
+  existants, pour que la comparaison soit honnête.
+-->
+<html lang="fr" class="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PronoWin Admin — socle consolidé</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   CE QUI IRAIT DANS style.css — composants partagés remplaçant les 1 662
+   lignes de CSS dispersées dans 21 vues.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Correctif de la barre de filtres ──────────────────────────────────
+   style.css:393 pose `input,select,textarea{width:100%}`. Toute barre en flex
+   voit donc ses champs occuper chacun une ligne entière. On rend la largeur
+   automatique dès qu'un champ est dans une barre. */
+.filterbar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;
+             padding:.75rem; background:var(--surface); border:1px solid var(--border);
+             border-radius:var(--radius); margin-bottom:1rem; }
+.filterbar input, .filterbar select { width:auto; padding:.4rem .65rem; font-size:.82rem; }
+.filterbar input[type=search] { min-width:220px; }
+.filterbar .spacer { margin-left:auto; }
+
+/* ── 2. Accessibilité : anneau de focus (0 occurrence aujourd'hui) ───────── */
+:where(a,button,input,select,textarea,[tabindex]):focus-visible {
+  outline:2px solid var(--primary); outline-offset:2px; border-radius:4px;
+}
+
+/* ── 3. Alertes lisibles dans LES DEUX thèmes ─────────────────────────────
+   Le texte pastel actuel (#FCA5A5…) tombe à 1,2–1,7:1 sur fond clair.
+   Un color-mix unique ne suffit pas : sur fond clair il faut assombrir bien
+   plus. D'où un token de texte par thème, calculé pour être la teinte la plus
+   vive qui atteigne encore 4,5:1 (WCAG AA) sur son propre fond. */
+:root {
+  --on-danger:  #ee4e4e;  --on-warning: #f59e0b;
+  --on-info:    #4286f6;  --on-success: #22c55e;
+}
+html.light {
+  /* Calculés pour tenir 4,5:1 sur les DEUX fonds clairs de l'app
+     (--surface #FFFFFF et --bg #F1F4FB), pas seulement sur du blanc. */
+  --on-danger:  #bc3a3d;  --on-warning: #916317;
+  --on-info:    #3168c2;  --on-success: #1b7b46;
+}
+.alert { display:flex; gap:.6rem; padding:.7rem .9rem; border-radius:var(--radius-s);
+         border:1px solid; font-size:.85rem; line-height:1.45; margin-bottom:.5rem; }
+.alert.danger  { background:color-mix(in srgb,var(--error) 8%,transparent);
+                 border-color:color-mix(in srgb,var(--error) 28%,transparent);
+                 color:var(--on-danger); }
+.alert.warning { background:color-mix(in srgb,var(--warning) 8%,transparent);
+                 border-color:color-mix(in srgb,var(--warning) 28%,transparent);
+                 color:var(--on-warning); }
+.alert.info    { background:color-mix(in srgb,var(--info) 8%,transparent);
+                 border-color:color-mix(in srgb,var(--info) 28%,transparent);
+                 color:var(--on-info); }
+.alert.success { background:color-mix(in srgb,var(--success) 8%,transparent);
+                 border-color:color-mix(in srgb,var(--success) 28%,transparent);
+                 color:var(--on-success); }
+
+/* ── 4. Tableau de données unifié ─────────────────────────────────────────
+   Un seul composant pour les 10 listes, aujourd'hui écrites 10 fois. */
+.dt-wrap { background:var(--surface); border:1px solid var(--border);
+           border-radius:var(--radius); overflow:hidden; }
+.dt { width:100%; border-collapse:collapse; font-size:13px; }
+.dt thead th { position:sticky; top:0; z-index:2; background:var(--surface-d);
+               text-align:left; color:var(--text-m); font-size:11px; font-weight:600;
+               text-transform:uppercase; letter-spacing:.5px; padding:9px 12px;
+               border-bottom:1px solid var(--border); white-space:nowrap; }
+.dt th.sortable { cursor:pointer; user-select:none; }
+.dt th.sortable:hover { color:var(--text); }
+.dt th .arrow { opacity:.3; margin-left:4px; }
+.dt th[aria-sort] .arrow { opacity:1; color:var(--primary); }
+.dt td { padding:6px 12px; border-bottom:.5px solid var(--border); vertical-align:middle;
+         line-height:1.35; }
+/* Les boutons héritent d'un padding pensé pour des formulaires : trop grand
+   pour une ligne de tableau, il dictait à lui seul la hauteur des lignes. */
+.dt .btn { padding:3px 8px; font-size:11.5px; }
+.dt tbody tr:hover td { background:rgba(var(--primary-rgb),.05); }
+.dt tbody tr[data-selected] td { background:rgba(var(--primary-rgb),.09); }
+.dt .num { text-align:right; font-variant-numeric:tabular-nums; }
+.dt .col-check { width:34px; }
+.dt .col-act   { width:1%; white-space:nowrap; text-align:right; }
+
+/* Densité réglable — un admin qui traite 200 lignes veut du compact. */
+.dt-wrap[data-density=compact] .dt td      { padding:2px 12px; }
+.dt-wrap[data-density=compact] .dt thead th{ padding:5px 12px; }
+.dt-wrap[data-density=compact] .dt .btn { padding:1px 7px; }
+.dt-wrap[data-density=compact] .team-logo  { width:16px; height:16px; }
+
+/* Actions au survol : aujourd'hui 4 boutons × 15 cartes = 60 boutons à l'écran. */
+.row-act { display:flex; gap:.25rem; justify-content:flex-end; opacity:0; transition:opacity .12s; }
+.dt tbody tr:hover .row-act, .dt tbody tr:focus-within .row-act { opacity:1; }
+@media (hover:none){ .row-act { opacity:1; } }
+
+/* Barre d'actions groupées — inexistante aujourd'hui (0 case à cocher). */
+.bulkbar { display:none; align-items:center; gap:.6rem; padding:.55rem .9rem;
+           background:rgba(var(--primary-rgb),.12);
+           border-bottom:1px solid color-mix(in srgb,var(--primary) 30%,transparent);
+           font-size:.83rem; }
+.bulkbar[data-on] { display:flex; }
+.bulkbar .count { font-weight:700; color:var(--primary); }
+
+/* Statut : point coloré + mot. Moins bruyant que 15 pastilles pleines. */
+.status { display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap; }
+.status::before { content:''; width:7px; height:7px; border-radius:50%; background:currentColor; }
+.status.pub   { color:var(--success); }
+.status.draft { color:var(--warning); }
+.status.none  { color:var(--text-dim); }
+.status.live  { color:var(--error); }
+.status.live::before { animation:pulse 1.6s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+.team { display:flex; align-items:center; gap:.45rem; }
+.team-logo { width:18px; height:18px; border-radius:50%; background:var(--surface-h);
+             display:grid; place-items:center; font-size:9px; flex-shrink:0; }
+.matchcell { display:flex; align-items:center; gap:.5rem; }
+.matchcell .vs { color:var(--text-dim); font-size:.72rem; }
+
+/* Badge manquant : `badge-error` est utilisé dans pronostic_form.ejs:594 mais
+   n'existe nulle part — le badge « LOSS » s'affiche donc sans style d'échec. */
+.badge-error { background:rgba(239,68,68,.15); color:var(--error); }
+
+/* ═══ Chrome de la maquette (ne partirait pas en production) ═══════════════ */
+body { margin:0; background:var(--bg); color:var(--text);
+       font-family:system-ui,-apple-system,'Segoe UI',sans-serif; }
+.dp-shell { max-width:1240px; margin:0 auto; padding:1.5rem 1.25rem 4rem; }
+.dp-top { display:flex; align-items:center; gap:1rem; margin-bottom:1.75rem;
+          padding-bottom:1rem; border-bottom:1px solid var(--border); }
+.dp-top h1 { font-size:1.15rem; margin:0; font-weight:700; }
+.dp-top p  { margin:.15rem 0 0; font-size:.8rem; color:var(--text-m); }
+.dp-sec { margin:2.5rem 0; }
+.dp-sec > h2 { font-size:.72rem; text-transform:uppercase; letter-spacing:1.2px;
+               color:var(--text-m); margin:0 0 .3rem; font-weight:700; }
+.dp-sec > .why { font-size:.85rem; color:var(--text-m); margin:0 0 .9rem; line-height:1.55; max-width:74ch; }
+.dp-ba { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media(max-width:900px){ .dp-ba { grid-template-columns:1fr; } }
+.dp-pane { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.dp-pane > header { font-size:.7rem; text-transform:uppercase; letter-spacing:1px;
+                    padding:.45rem .75rem; font-weight:700; }
+.dp-pane.bad  > header { background:rgba(239,68,68,.12); color:var(--error); }
+.dp-pane.good > header { background:rgba(34,197,94,.12); color:var(--success); }
+.dp-pane > .body { padding:.85rem; }
+.dp-note { font-size:.78rem; color:var(--text-dim); margin-top:.5rem; font-style:italic; }
+.dp-swatches { display:flex; flex-wrap:wrap; gap:.5rem; }
+.dp-sw { width:78px; }
+.dp-sw i { display:block; height:34px; border-radius:6px; border:1px solid var(--border); }
+.dp-sw span { font-size:.66rem; color:var(--text-m); display:block; margin-top:.2rem;
+              font-family:ui-monospace,monospace; }
+/* Reproduit fidèlement l'état actuel : champs pleine largeur dans un flex. */
+.dp-broken-bar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.dp-broken-bar select, .dp-broken-bar input { width:100%; }
+</style>
+</head>
+<body>
+<div class="dp-shell">
+
+  <div class="dp-top">
+    <div style="flex:1">
+      <h1>Socle consolidé — maquette</h1>
+      <p>Page statique, sans donnée réelle. Charge le vrai <code>style.css</code> : les couleurs viennent de tes tokens.</p>
+    </div>
+    <button class="btn btn-outline btn-sm" id="theme">☀️ / 🌙 Basculer le thème</button>
+  </div>
+
+  <!-- 1 ─────────────────────────────────────────────────────────────────── -->
+  <section class="dp-sec">
+    <h2>1 · La barre de filtres</h2>
+    <p class="why">
+      Ce n'est pas un choix de design. <code>.pro-filter</code> demande
+      <code>display:flex</code>, mais <code>style.css:393</code> impose
+      <code>width:100%</code> à tout champ. Chaque contrôle prend donc une ligne
+      entière : ~250&nbsp;px de hauteur avant d'atteindre la moindre donnée.
+    </p>
+    <div class="dp-ba">
+      <div class="dp-pane bad">
+        <header>Aujourd'hui — 4 lignes empilées</header>
+        <div class="body">
+          <div class="dp-broken-bar">
+            <select><option>⭐ Ligues principales + amicaux</option></select>
+            <select><option>Tous statuts</option></select>
+            <input type="search" placeholder="🔍 Équipe ou ligue…">
+            <input type="date">
+            <button class="btn btn-outline btn-sm">Filtrer</button>
+          </div>
+        </div>
+      </div>
+      <div class="dp-pane good">
+        <header>Proposé — une ligne, filtrage instantané</header>
+        <div class="body">
+          <div class="filterbar" style="margin:0">
+            <select><option>⭐ Ligues principales</option></select>
+            <select><option>Tous statuts</option></select>
+            <input type="search" placeholder="Équipe ou ligue…">
+            <input type="date">
+            <span class="spacer"></span>
+            <span style="font-size:.78rem;color:var(--text-m)">15 résultats</span>
+          </div>
+          <p class="dp-note">Le bouton « Filtrer » disparaît : les champs déclenchent le filtrage.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 ─────────────────────────────────────────────────────────────────── -->
+  <section class="dp-sec">
+    <h2>2 · La liste — le cœur du sujet</h2>
+    <p class="why">
+      Tes 15 matchs occupent aujourd'hui quatre cartes par ligne : il faut faire
+      défiler pour en voir douze, et 60 boutons d'action sont affichés en
+      permanence. Le même volume tient ici sans défilement, avec tri par
+      colonne, sélection multiple et actions groupées — trois choses qu'aucune
+      des 10 listes de l'admin ne propose aujourd'hui.
+    </p>
+
+    <div class="filterbar">
+      <select><option>⭐ Ligues principales</option></select>
+      <select id="fstatus">
+        <option value="">Tous statuts</option>
+        <option value="pub">Publiés</option>
+        <option value="draft">Brouillons</option>
+        <option value="none">Sans prono</option>
+      </select>
+      <input type="search" id="fq" placeholder="Équipe ou ligue…">
+      <span class="spacer"></span>
+      <label style="font-size:.78rem;color:var(--text-m);display:flex;gap:.35rem;align-items:center">
+        <input type="checkbox" id="dens" style="width:auto"> Compact
+      </label>
+      <span id="count" style="font-size:.78rem;color:var(--text-m)"></span>
+    </div>
+
+    <div class="dt-wrap" id="wrap">
+      <div class="bulkbar" id="bulk">
+        <span class="count" id="bulkn">0</span> sélectionné(s)
+        <span class="spacer" style="margin-left:auto"></span>
+        <button class="btn btn-sm btn-outline">✅ Marquer WIN</button>
+        <button class="btn btn-sm btn-outline">❌ Marquer LOSS</button>
+        <button class="btn btn-sm btn-outline">🔄 Rembourser</button>
+        <button class="btn btn-sm btn-outline" id="unsel">Annuler</button>
+      </div>
+      <div style="max-height:520px;overflow:auto">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="all" style="width:auto" aria-label="Tout sélectionner"></th>
+              <th class="sortable" data-k="date" aria-sort="ascending">Coup d'envoi <span class="arrow">↑</span></th>
+              <th class="sortable" data-k="league">Compétition <span class="arrow">↕</span></th>
+              <th class="sortable" data-k="match">Match <span class="arrow">↕</span></th>
+              <th class="sortable" data-k="prono">Pronostic <span class="arrow">↕</span></th>
+              <th class="sortable num" data-k="odds">Cote <span class="arrow">↕</span></th>
+              <th class="sortable num" data-k="conf">Conf. <span class="arrow">↕</span></th>
+              <th class="sortable" data-k="status">Statut <span class="arrow">↕</span></th>
+              <th class="col-act">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tb"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="dp-note">
+      Survole une ligne pour voir apparaître ses actions. Coche des lignes pour
+      faire surgir la barre d'actions groupées. Clique un en-tête pour trier.
+      Navigue au clavier : l'anneau de focus existe (il n'y en a aucun aujourd'hui).
+    </p>
+  </section>
+
+  <!-- 3 ─────────────────────────────────────────────────────────────────── -->
+  <section class="dp-sec">
+    <h2>3 · Le mode clair</h2>
+    <p class="why">
+      Quatre couleurs pastel figées dans <code>dashboard.ejs</code>, prévues pour
+      un fond sombre. Sur blanc, elles tombent entre 1,32 et 1,74:1 — le seuil
+      WCAG&nbsp;AA est à 4,5:1. Bascule le thème en haut de page : la colonne de
+      gauche disparaît, celle de droite reste lisible.
+    </p>
+    <div class="dp-ba">
+      <div class="dp-pane bad">
+        <header>Aujourd'hui — couleurs figées</header>
+        <div class="body">
+          <div class="alert" style="background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.18);color:#FCA5A5">
+            <span>⚠️</span><span>3 preuves de paiement en attente depuis plus de 24 h</span></div>
+          <div class="alert" style="background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.18);color:#FCD34D">
+            <span>⏳</span><span>9 matchs du jour sans pronostic</span></div>
+          <div class="alert" style="background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.18);color:#93C5FD">
+            <span>ℹ️</span><span>Quota API-Football : 62 % consommé</span></div>
+          <div class="alert" style="background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.18);color:#86EFAC">
+            <span>✅</span><span>Synchronisation des scores active</span></div>
+        </div>
+      </div>
+      <div class="dp-pane good">
+        <header>Proposé — dérivé des tokens</header>
+        <div class="body">
+          <div class="alert danger"><span>⚠️</span><span>3 preuves de paiement en attente depuis plus de 24 h</span></div>
+          <div class="alert warning"><span>⏳</span><span>9 matchs du jour sans pronostic</span></div>
+          <div class="alert info"><span>ℹ️</span><span>Quota API-Football : 62 % consommé</span></div>
+          <div class="alert success"><span>✅</span><span>Synchronisation des scores active</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 ─────────────────────────────────────────────────────────────────── -->
+  <section class="dp-sec">
+    <h2>4 · L'inventaire, remis d'équerre</h2>
+    <p class="why">
+      Les tokens existent déjà et sont largement respectés (654 usages de
+      <code>var(--…)</code>). Ce qui manque, c'est la discipline : 158 couleurs
+      en dur, et <code>badge-err</code> qui cohabite avec <code>badge-error</code>
+      — ce dernier n'étant défini nulle part, le badge « LOSS » du formulaire de
+      pronostic s'affiche sans style d'échec.
+    </p>
+    <div class="dp-swatches" style="margin-bottom:1rem">
+      <div class="dp-sw"><i style="background:var(--bg)"></i><span>--bg</span></div>
+      <div class="dp-sw"><i style="background:var(--surface)"></i><span>--surface</span></div>
+      <div class="dp-sw"><i style="background:var(--surface-d)"></i><span>--surface-d</span></div>
+      <div class="dp-sw"><i style="background:var(--border)"></i><span>--border</span></div>
+      <div class="dp-sw"><i style="background:var(--primary)"></i><span>--primary</span></div>
+      <div class="dp-sw"><i style="background:var(--success)"></i><span>--success</span></div>
+      <div class="dp-sw"><i style="background:var(--warning)"></i><span>--warning</span></div>
+      <div class="dp-sw"><i style="background:var(--error)"></i><span>--error</span></div>
+      <div class="dp-sw"><i style="background:var(--info)"></i><span>--info</span></div>
+    </div>
+    <div style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary btn-sm">Action principale</button>
+      <button class="btn btn-outline btn-sm">Secondaire</button>
+      <button class="btn btn-danger btn-sm">Destructive</button>
+      <span class="badge badge-ok">Publié</span>
+      <span class="badge badge-warn">Brouillon</span>
+      <span class="badge badge-error">LOSS <em style="font-style:normal;opacity:.6">← réparé</em></span>
+      <span class="badge badge-info">Premium</span>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ── Données fictives, calquées sur ta capture ───────────────────────────────
+const ROWS = [
+  ['11/08 15:00','UEFA Champions League','Kairat Almaty','Levski Sofia',null,null,null,'none'],
+  ['11/08 16:00','UEFA Champions League','Bodo/Glimt','Union St. Gilloise','Total buts : Plus de 2.5',1.48,5,'pub'],
+  ['11/08 16:00','UEFA Champions League','Sabah FA','Aarhus',null,null,null,'none'],
+  ['11/08 17:00','UEFA Champions League','Kauno Žalgiris','Dinamo Zagreb','Vainqueur : Dinamo Zagreb',1.46,5,'pub'],
+  ['11/08 17:30','UEFA Champions League','NEC Nijmegen','Olympiakos Piraeus',null,null,null,'none'],
+  ['11/08 18:00','UEFA Champions League','FK Crvena Zvezda','Hapoel Beer Sheva','Double chance 1X',1.22,3,'draft'],
+  ['11/08 18:15','UEFA Champions League','Celje','Ararat-Armenia',null,null,null,'none'],
+  ['11/08 18:15','UEFA Champions League','Slovan Bratislava','Mjallby AIF','Les deux marquent',1.75,4,'pub'],
+  ['11/08 18:30','UEFA Champions League','Malmö FF','RFS',null,null,null,'none'],
+  ['11/08 19:00','UEFA Champions League','Ludogorets','Rijeka','Moins de 3.5 buts',1.34,4,'live'],
+  ['15/08 17:30','La Liga','Girona','Rayo Vallecano','Vainqueur : Girona',2.10,3,'draft'],
+  ['15/08 19:30','La Liga','Villarreal','Real Oviedo','Plus de 1.5 but',1.28,5,'pub'],
+  ['16/08 15:00','Premier League','Aston Villa','Newcastle',null,null,null,'none'],
+  ['16/08 17:00','Premier League','Brighton','Fulham','Les deux marquent',1.68,4,'pub'],
+  ['16/08 19:30','Serie A','Napoli','Sassuolo',null,null,null,'none'],
+];
+const LABEL = { pub:'Publié', draft:'Brouillon', none:'Sans prono', live:'En direct' };
+const initials = n => n.split(/[\s.]+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let sortKey = 'date', sortAsc = true;
+const KEYIX = { date:0, league:1, match:2, prono:4, odds:5, conf:6, status:7 };
+
+const tb=document.getElementById('tb'), bulk=document.getElementById('bulk'),
+      bulkn=document.getElementById('bulkn'), count=document.getElementById('count');
+
+function visible(){
+  const q=(document.getElementById('fq').value||'').toLowerCase();
+  const st=document.getElementById('fstatus').value;
+  let r=ROWS.filter(x=>(!st||x[7]===st) &&
+    (!q||(x[1]+' '+x[2]+' '+x[3]+' '+(x[4]||'')).toLowerCase().includes(q)));
+  const i=KEYIX[sortKey];
+  // Les valeurs absentes restent en bas dans les deux sens : un tri par cote
+  // qui remonte d'abord tous les « — » ne sert à rien.
+  r.sort((a,b)=>{
+    const A=a[i], B=b[i];
+    if(A==null && B==null) return 0;
+    if(A==null) return 1;
+    if(B==null) return -1;
+    const c = (typeof A==='number'&&typeof B==='number') ? A-B : String(A).localeCompare(String(B),'fr');
+    return sortAsc?c:-c;
+  });
+  return r;
+}
+
+function render(){
+  const rows=visible();
+  count.textContent = rows.length + ' sur ' + ROWS.length;
+  tb.innerHTML = rows.map((r,i)=>`
+    <tr data-i="${i}">
+      <td class="col-check"><input type="checkbox" class="rowchk" style="width:auto" aria-label="Sélectionner"></td>
+      <td style="color:var(--text-m);white-space:nowrap">${esc(r[0])}</td>
+      <td style="color:var(--text-m)">${esc(r[1])}</td>
+      <td>
+        <div class="matchcell">
+          <span class="team"><span class="team-logo">${esc(initials(r[2]))}</span>${esc(r[2])}</span>
+          <span class="vs">vs</span>
+          <span class="team"><span class="team-logo">${esc(initials(r[3]))}</span>${esc(r[3])}</span>
+        </div>
+      </td>
+      <td>${r[4]?esc(r[4]):'<span style="color:var(--text-dim)">—</span>'}</td>
+      <td class="num">${r[5]??'<span style="color:var(--text-dim)">—</span>'}</td>
+      <td class="num">${r[6]?esc(r[6])+'/5':'<span style="color:var(--text-dim)">—</span>'}</td>
+      <td><span class="status ${r[7]}">${LABEL[r[7]]}</span></td>
+      <td class="col-act">
+        <div class="row-act">
+          ${r[4]
+            ? `<button class="btn btn-sm btn-outline" title="Marquer gagnant">✅</button>
+               <button class="btn btn-sm btn-outline" title="Marquer perdant">❌</button>
+               <button class="btn btn-sm btn-outline" title="Modifier">✏️</button>`
+            : `<button class="btn btn-sm btn-primary">+ Créer</button>`}
+        </div>
+      </td>
+    </tr>`).join('');
+  sync();
+}
+
+function sync(){
+  const chk=[...document.querySelectorAll('.rowchk')];
+  const n=chk.filter(c=>c.checked).length;
+  bulkn.textContent=n;
+  bulk.toggleAttribute('data-on', n>0);
+  chk.forEach(c=>c.closest('tr').toggleAttribute('data-selected', c.checked));
+  const all=document.getElementById('all');
+  all.checked = n>0 && n===chk.length;
+  all.indeterminate = n>0 && n<chk.length;
+}
+
+tb.addEventListener('change', e => { if(e.target.classList.contains('rowchk')) sync(); });
+document.getElementById('all').addEventListener('change', e => {
+  document.querySelectorAll('.rowchk').forEach(c => c.checked = e.target.checked); sync();
+});
+document.getElementById('unsel').addEventListener('click', () => {
+  document.querySelectorAll('.rowchk').forEach(c => c.checked=false); sync();
+});
+document.querySelectorAll('.dt th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const k=th.dataset.k;
+    sortAsc = (k===sortKey) ? !sortAsc : true;
+    sortKey = k;
+    document.querySelectorAll('.dt th').forEach(h=>{
+      h.removeAttribute('aria-sort');
+      const a=h.querySelector('.arrow'); if(a) a.textContent='↕';
+    });
+    th.setAttribute('aria-sort', sortAsc?'ascending':'descending');
+    th.querySelector('.arrow').textContent = sortAsc?'↑':'↓';
+    render();
+  });
+});
+document.getElementById('fq').addEventListener('input', render);
+document.getElementById('fstatus').addEventListener('change', render);
+document.getElementById('dens').addEventListener('change', e => {
+  document.getElementById('wrap').dataset.density = e.target.checked ? 'compact' : 'normal';
+});
+document.getElementById('theme').addEventListener('click', () => {
+  document.documentElement.classList.toggle('light');
+});
+
+render();
+</script>
+</body>
+</html>

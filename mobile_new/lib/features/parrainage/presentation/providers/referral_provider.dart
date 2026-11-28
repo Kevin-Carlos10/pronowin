@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
@@ -47,7 +48,7 @@ class ApplyCodeNotifier extends StateNotifier<ApplyCodeState> {
       final r = await _dio.post('/referral/apply-code', data: {'referral_code': code});
       state = ApplyCodeSuccess(r.data['referrer_pseudo'] as String? ?? '');
     } on DioException catch (e) {
-      state = ApplyCodeError(e.response?.data?['message'] as String? ?? 'Erreur.');
+      state = ApplyCodeError(e.response?.data?['message'] as String? ?? trCurrent("Erreur."));
     }
   }
 
@@ -82,9 +83,9 @@ class WithdrawNotifier extends StateNotifier<WithdrawState> {
         'phone':         phone,
         'use_as_credit': useAsCredit,
       });
-      state = WithdrawSuccess(r.data['message'] as String? ?? 'Succès.');
+      state = WithdrawSuccess(r.data['message'] as String? ?? trCurrent("Succès."));
     } on DioException catch (e) {
-      state = WithdrawError(e.response?.data?['message'] as String? ?? 'Erreur.');
+      state = WithdrawError(e.response?.data?['message'] as String? ?? trCurrent("Erreur."));
     }
   }
 

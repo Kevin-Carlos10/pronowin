@@ -16,10 +16,10 @@ final tutorialRepoProvider = Provider<TutorialRepository>(
 
 // ─── Filtres ─────────────────────────────────────────────────────────────────
 class TutorialFilter {
-  final TutorialLevel?    level;
-  final TutorialCategory? category;
+  final TutorialLevel? level;
+  final String?        category;
   const TutorialFilter({this.level, this.category});
-  TutorialFilter copyWith({TutorialLevel? level, TutorialCategory? category, bool clearLevel = false, bool clearCategory = false}) =>
+  TutorialFilter copyWith({TutorialLevel? level, String? category, bool clearLevel = false, bool clearCategory = false}) =>
       TutorialFilter(
         level:    clearLevel    ? null : (level    ?? this.level),
         category: clearCategory ? null : (category ?? this.category),
@@ -47,9 +47,19 @@ class VideoProgressNotifier extends StateNotifier<Map<String, int>> {
   final TutorialRepository _repo;
   VideoProgressNotifier(this._repo) : super({});
 
-  Future<void> updateProgress(String tutorialId, int seconds, bool completed) async {
+  /// Enregistre la progression. Rend `true` si le serveur l'a bien reçue.
+  ///
+  /// Le résultat `Either` de l'enregistrement était jeté : un échec réseau
+  /// passait pour une réussite, et l'écran affichait « Tutoriel marqué comme
+  /// terminé ! » sur une progression que personne n'avait enregistrée. Au
+  /// lancement suivant, la coche avait disparu sans explication.
+  ///
+  /// L'état local reste posé d'abord — l'écran doit répondre au doigt — mais
+  /// l'appelant sait désormais s'il peut l'annoncer.
+  Future<bool> updateProgress(String tutorialId, int seconds, bool completed) async {
     state = {...state, tutorialId: seconds};
-    await MarkProgressUseCase(_repo).call(tutorialId, seconds, completed);
+    final r = await MarkProgressUseCase(_repo).call(tutorialId, seconds, completed);
+    return r.isRight();
   }
 }
 

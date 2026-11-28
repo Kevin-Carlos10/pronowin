@@ -8,7 +8,7 @@ class SendOtpUseCase {
 
   Future<Either<Failure, void>> call(String phoneNumber) {
     if (phoneNumber.length < 8) {
-      return Future.value(const Left(ValidationFailure('Numéro de téléphone invalide.')));
+      return Future.value( Left(ValidationFailure("Numéro de téléphone invalide.")));
     }
     return _repository.sendOtp(phoneNumber);
   }

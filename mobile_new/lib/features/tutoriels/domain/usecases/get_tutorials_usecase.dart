@@ -4,8 +4,8 @@ import '../entities/tutorial_entity.dart';
 import '../repositories/tutorial_repository.dart';
 
 class GetTutorialsParams {
-  final TutorialLevel?    level;
-  final TutorialCategory? category;
+  final TutorialLevel? level;
+  final String?        category;
   const GetTutorialsParams({this.level, this.category});
 }
 

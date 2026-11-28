@@ -76,3 +76,99 @@ flutterfire configure --project=votre-projet-firebase
 # Génère automatiquement lib/firebase_options.dart
 flutter run
 ```
+
+## 5. Forcer une mise a jour sur l'APK direct
+
+L'APK telecharge depuis le site ne se met **jamais** a jour tout seul. Le
+mecanisme de blocage existe et se pilote depuis le panneau
+d'administration — Parametres → Mises a jour.
+
+### Les valeurs, et ce qu'elles font
+
+| Cle | Effet |
+| --- | --- |
+| `APK_LATEST_VERSION` | La derniere version publiee. Au-dessous, l'application propose la mise a jour **une fois par version**, avec un bouton « Plus tard ». |
+| `APK_MIN_VERSION` | Le plancher. Au-dessous, la fenetre **bloque** : ni bouton retour, ni fermeture, et elle ne se referme pas non plus quand on lance le telechargement. |
+| `APK_FORCE_UPDATE` | Bloque tout le monde, quelle que soit la version installee. A reserver a un defaut grave. |
+| `APK_URL` | Le fichier a telecharger. **Vide, aucune invitation n'est affichee** — plutot qu'un bouton menant a un lien mort. |
+
+Le canal store a ses propres cles (`APP_*`) : une release Play attend la
+validation de Google pendant que l'APK est deja en ligne, donc les deux jeux de
+versions divergent forcement. Les melanger enverrait la moitie des
+utilisateurs vers une mise a jour inexistante.
+
+### L'ordre, et pourquoi il n'est pas negociable
+
+1. Construire l'APK : `.\tool\build.ps1 -Canal direct -ApiUrl https://pronowin.space/api/v1`
+2. **Le mettre en ligne** dans `/var/www/pronowin/downloads/` et verifier qu'il se telecharge
+3. Passer `APK_LATEST_VERSION` a la nouvelle version
+4. **Seulement ensuite**, relever `APK_MIN_VERSION` si la mise a jour doit etre obligatoire
+
+Relever le minimum avant d'avoir publie le fichier enferme tout le monde :
+l'utilisateur telecharge, installe, relance — et retrouve la meme fenetre, a
+chaque lancement, sans issue. Le serveur refuse desormais cette configuration
+(« la version minimale exigee depasse la derniere version publiee »), mais
+l'ordre reste le bon reflexe.
+
+### Verifier avant et apres
+
+```bash
+curl -s https://pronowin.space/api/v1/config | python -m json.tool
+curl -s -o /dev/null -w '%{http_code}\n' -L <APK_URL>
+```
+
+La seconde ligne compte autant que la premiere : une URL qui repond 404 avec un
+blocage actif est le seul scenario qui ne se rattrape pas depuis l'application.
+
+## 6. Deux variantes de build, et ce que ca change au quotidien
+
+Depuis que l'application installe elle-meme ses mises a jour, le canal n'est
+plus seulement un drapeau Dart : c'est une **variante Gradle**.
+
+| Variante | Permission `REQUEST_INSTALL_PACKAGES` | Distribution |
+| --- | --- | --- |
+| `direct` | declaree | APK telecharge depuis le site |
+| `play` | **absente** | App Bundle publie sur Google Play |
+
+La permission autorise une application a installer un paquet. Elle est
+indispensable au canal direct, qui telecharge le nouvel APK et le remet a
+l'installateur du systeme. Elle est **interdite** au canal store : la politique
+« Device and Network Abuse » reserve l'installation d'APK hors Play aux
+boutiques d'applications, et sa presence dans un AAB n'est pas une mise a jour
+refusee mais un motif de retrait.
+
+Un `--dart-define` ne pouvait pas faire cette difference : il ne touche pas au
+manifeste. D'ou `productFlavors`, et un seul `src/direct/AndroidManifest.xml`.
+
+### Au quotidien
+
+`flutter run` refuse desormais de demarrer sans variante :
+
+```bash
+flutter run --flavor direct
+```
+
+Les releases passent par le script, qui choisit la variante lui-meme :
+
+```bash
+.\tool\build.ps1 -Canal direct -ApiUrl https://pronowin.space/api/v1
+.\tool\build.ps1 -Canal play   -ApiUrl https://pronowin.space/api/v1
+```
+
+Les artefacts portent le nom de leur variante :
+
+    build\app\outputs\flutter-apk\app-direct-release.apk
+    build\app\outputs\bundle\playRelease\app-play-release.aab
+
+### Deux controles, deux moments
+
+`test/canal_installation_test.dart` lit les sources : il attrape la permission
+deplacee dans `src/main`, ou une variante supprimee, au moment ou c'est ecrit.
+
+`tool/verifier_bundle.py` ouvre l'artefact produit et regarde ce qu'il contient
+vraiment ; c'est lui qui attrape un build lance a la main sans `--flavor`. Le
+script de build l'appelle pour les deux canaux.
+
+Les deux sont necessaires. Un defaut qui ne vit que dans le binaire ne se voit
+qu'en ouvrant le binaire ; un controle qui n'existe qu'a la fin arrive trop
+tard.

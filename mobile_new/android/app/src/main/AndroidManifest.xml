@@ -1,4 +1,15 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Aucune publicite dans PronoWin : l'identifiant publicitaire n'a rien
+         a faire ici. La mesure d'audience Firebase (firebase_analytics) ajoute
+         d'office ces trois permissions a la fusion des manifestes ; Play a
+         alors exige une declaration d'identifiant publicitaire (3 octobre
+         2026). La mesure d'audience fonctionne sans : elle s'appuie sur
+         l'identifiant d'installation, le seul que la politique de
+         confidentialite declare. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION" tools:node="remove"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <!-- WorkManager background sync -->
@@ -8,7 +19,9 @@
     <application
         android:label="PronoWin"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -74,12 +87,28 @@
             android:value="2" />
 
         <!-- FCM default notification channel -->
+        <!-- Pointait sur @mipmap/ic_launcher, qui est reste le logo Flutter
+             par defaut du jour de creation du projet : l'application affiche
+             @mipmap/launcher_icon, pas celui-la. Les notifications portaient
+             donc le logo de Flutter.
+
+             Et pointer sur launcher_icon n'aurait pas suffi : depuis Android 5
+             la petite icone est rendue en silhouette, canal alpha seul. Un
+             fond orange opaque y devient un carre blanc. D'ou une icone
+             monochrome dediee, generee par brand/notification.js. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher"/>
+            android:resource="@drawable/ic_notification"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/couleur_notification"/>
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="pronowin_high"/>
+        <!-- Et Firebase ne cherche pas a le lire. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -90,6 +119,25 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Requis (Android 11+ package visibility) pour que url_launcher puisse
+             détecter et ouvrir un navigateur/app externe (ex: vidéos YouTube). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <!-- Requis pour ouvrir l'app mail depuis "Nous contacter" (À propos). -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mailto"/>
         </intent>
     </queries>
 </manifest>

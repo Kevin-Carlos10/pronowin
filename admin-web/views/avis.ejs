@@ -1,0 +1,112 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', { page: 'avis' }) %>
+
+<%# « Donne-nous ton avis » (8 novembre 2026) : les messages envoyés depuis
+    Paramètres > Aide de l'application, avec la version, le téléphone et une
+    capture d'écran facultative. %>
+<style>
+.av-liste { display:flex; flex-direction:column; gap:.75rem; }
+.av-carte { padding:1rem 1.1rem; }
+.av-entete { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; }
+.av-meta { font-size:.82rem; color:var(--text-dim); }
+.av-texte { margin:.6rem 0 .75rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+.av-capture { display:inline-block; margin:0 0 .75rem; }
+.av-capture img { max-width:220px; max-height:420px; border-radius:10px; border:1px solid var(--border); display:block; }
+.av-actions { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:flex-end; }
+.av-actions form { display:inline; }
+.av-pagination-info { font-size:.82rem; color:var(--text-dim); padding:0 .5rem; }
+</style>
+
+<%
+  function quand(iso) {
+    return iso
+      ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : '—';
+  }
+  const PLATEFORMES = { ios: 'iPhone', android: 'Android' };
+  const lien = (p) => '/admin/avis?' + (filtre !== 'nouveaux' ? 'filtre=' + filtre + '&' : '') + 'page=' + p;
+  const ecrit = hasPerm('users', 'write');
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Utilisateurs & support</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-inbox"/></svg> <%= uiText("Avis des utilisateurs") %></h1>
+    <p class="workspace-description">
+      Envoyés depuis « Donne-nous ton avis », dans Paramètres de l'application. Répondez par e-mail, puis classez l'avis.
+    </p>
+  </div>
+</header>
+
+<nav class="view-tabs" aria-label="Vues des avis">
+  <a href="/admin/avis" class="view-tab" aria-current="<%= filtre === 'nouveaux' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-inbox"/></svg> <%= uiText("Nouveaux") %> <span>(<%= nouveaux %>)</span></a>
+  <a href="/admin/avis?filtre=traites" class="view-tab" aria-current="<%= filtre === 'traites' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= uiText("Traités") %></a>
+  <a href="/admin/avis?filtre=tous" class="view-tab" aria-current="<%= filtre === 'tous' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> <%= uiText("Tous") %></a>
+</nav>
+
+<% if (success) { %><div class="alert alert-success" hidden><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error" hidden><%= error %></div><% } %>
+
+<% if (!data.length) { %>
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-state-title"><%= filtre === 'nouveaux' ? 'Aucun nouvel avis' : 'Aucun avis ici pour l’instant' %></div>
+    <div class="empty-state-desc">Les messages envoyés depuis l’application apparaîtront ici, avec la version et le téléphone de leur auteur.</div>
+  </div>
+</div>
+<% } else { %>
+<div class="av-liste">
+  <% data.forEach((a) => { %>
+  <article class="card av-carte">
+    <div class="av-entete">
+      <div>
+        <% if (a.utilisateur) { %>
+          <a href="/admin/users/<%= a.utilisateur.id %>"><strong><%= a.utilisateur.pseudo %></strong></a>
+        <% } else { %>
+          <strong>Invité</strong>
+        <% } %>
+        <span class="av-meta"> · <%= quand(a.creeLe) %><% if (a.plateforme) { %> · <%= PLATEFORMES[a.plateforme] ?? a.plateforme %><% } %><% if (a.versionApp) { %> · v<%= a.versionApp %><% } %></span>
+      </div>
+      <div>
+        <% if (a.traite) { %><span class="badge badge-ok">Traité le <%= quand(a.traiteLe) %></span><% } else { %><span class="badge badge-warn">Nouveau</span><% } %>
+      </div>
+    </div>
+    <p class="av-texte"><%= a.message %></p>
+    <% if (a.capture) { %>
+      <a class="av-capture" href="<%= a.capture %>" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir la capture d'écran en grand">
+        <img src="<%= a.capture %>" alt="Capture d'écran jointe à l'avis" loading="lazy">
+      </a>
+    <% } else if (a.aCapture) { %>
+      <p class="av-meta">Capture jointe, mais illisible pour l'instant (stockage indisponible).</p>
+    <% } %>
+    <div class="av-actions">
+      <% if (a.email) { %>
+        <a class="btn btn-outline btn-sm" href="mailto:<%= encodeURIComponent(a.email).replace(/%40/g, '@') %>?subject=<%= encodeURIComponent('Ton avis sur PronoWin') %>">
+          <svg class="ic" aria-hidden="true"><use href="#ic-send"/></svg> Répondre à <%= a.email %>
+        </a>
+      <% } %>
+      <% if (ecrit) { %>
+      <form method="POST" action="/admin/avis/<%= encodeURIComponent(a.id) %>/traite">
+        <input type="hidden" name="traite" value="<%= a.traite ? '0' : '1' %>">
+        <input type="hidden" name="filtre" value="<%= filtre %>">
+        <button type="submit" class="btn <%= a.traite ? 'btn-outline' : 'btn-primary' %> btn-sm">
+          <svg class="ic" aria-hidden="true"><use href="<%= a.traite ? '#ic-refresh' : '#ic-check' %>"/></svg>
+          <%= a.traite ? 'Remettre parmi les nouveaux' : 'Marquer comme traité' %>
+        </button>
+      </form>
+      <% } %>
+    </div>
+  </article>
+  <% }) %>
+</div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination">
+  <a href="<%= lien(page - 1) %>" class="btn btn-outline btn-sm <%= page <= 1 ? 'disabled' : '' %>" aria-label="Page précédente">‹</a>
+  <span class="av-pagination-info">Page <strong><%= page %></strong> / <%= totalPages %> · <%= total %> avis</span>
+  <a href="<%= lien(page + 1) %>" class="btn btn-outline btn-sm <%= page >= totalPages ? 'disabled' : '' %>" aria-label="Page suivante">›</a>
+</div>
+<% } %>
+<% } %>
+
+<%- include('layout_bottom') %>

@@ -27,7 +27,13 @@ yarn-error.log*
 backend/dist/
 admin-web/dist/
 backend/generated/
-backend/prisma/migrations/
+# `backend/prisma/migrations/` a été retiré d'ici.
+#
+# Une migration n'est pas un artefact produit : c'est la source de
+# l'évolution du schéma, et c'est elle que `prisma migrate deploy` exécute
+# en production. La ranger sous « Build / Generated » l'a rendue invisible :
+# trente migrations sur le disque, aucune dans le dépôt. Un clone neuf avait
+# le schéma sans le moyen de construire la base qui lui correspond.
 
 # ── Flutter ───────────────────────────────────────────────────────────────────
 mobile_new/.dart_tool/
@@ -35,7 +41,13 @@ mobile_new/.flutter-plugins
 mobile_new/.flutter-plugins-dependencies
 mobile_new/build/
 mobile_new/.packages
-mobile_new/pubspec.lock
+# `mobile_new/pubspec.lock` a été retiré d'ici.
+#
+# La règle « pas de verrou » vaut pour une bibliothèque, dont les
+# dépendances sont résolues par qui l'utilise. Ceci est une application :
+# sans verrou, deux constructions du même commit peuvent embarquer des
+# versions différentes, et un défaut apparu en production n'est pas
+# reproductible sur le poste qui l'a produit.
 mobile_new/ios/Pods/
 mobile_new/ios/.symlinks/
 mobile_new/ios/Flutter/Flutter.framework
@@ -64,3 +76,19 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Données d'exécution de l'admin-web (journal d'audit, réglages en cours).
+# Ce sont des états, pas du code : les suivre génère un conflit à chaque
+# déploiement. sub_admins.json était déjà ignoré pour la même raison.
+admin-web/data/audit_log.json
+admin-web/data/settings.json
+# Sessions ouvertes du panneau : empreintes d'identifiants et jeton d'API de
+# l'administrateur principal. Jamais dans le dépôt.
+admin-web/data/sessions.json
+admin-web/data/*.tmp
+
+# ── Sauvegardes locales avant modification destructive ───────────────────────
+# Copies datées prises avant un changement risqué. Ce sont des doublons du code
+# déjà présent : les versionner ferait cohabiter deux exemplaires d'un même
+# fichier, et on finirait par éditer le mauvais.
+sauvegarde_*/

@@ -1,13 +1,15 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware';
 import { getAll, getOne, markProgress, getProgress } from '../controllers/tutorial.controller';
 
 const r = Router();
-r.use(authMiddleware);
 
-r.get('/progress',      getProgress);          // GET  /tutorials/progress  — AVANT /:id
-r.get('/',              getAll);               // GET  /tutorials
-r.get('/:id',           getOne);              // GET  /tutorials/:id
-r.post('/:id/progress', markProgress);        // POST /tutorials/:id/progress
+// ── Progression personnelle — connexion requise (AVANT /:id) ───────────────────
+r.get('/progress',      authMiddleware, getProgress);
+r.post('/:id/progress', authMiddleware, markProgress);
+
+// ── Navigation ouverte aux invités ─────────────────────────────────────────────
+r.get('/',               optionalAuthMiddleware, getAll);  // GET  /tutorials
+r.get('/:id',             optionalAuthMiddleware, getOne); // GET  /tutorials/:id
 
 export default r;

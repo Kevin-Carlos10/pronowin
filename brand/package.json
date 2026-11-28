@@ -1,0 +1,19 @@
+{
+  "name": "pronowin-brand",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Logo et logotype PronoWin — sources vectorielles et rendus",
+  "scripts": {
+    "logotype": "node woff2ttf.js node_modules/@fontsource/inter/files/inter-latin-700-normal.woff inter-700.ttf && node logotype.js",
+    "rendre": "node rendre.js",
+    "verifier": "node verifier.js",
+    "tout": "npm run logotype && npm run profil && npm run notification && npm run vitrine && npm run rendre && npm run verifier",
+    "profil": "node lockup.js",
+    "notification": "node notification.js",
+    "vitrine": "node feature-graphic.js"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.0.0",
+    "opentype.js": "^1.3.4"
+  }
+}

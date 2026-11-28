@@ -1,11 +1,17 @@
+import 'dart:convert';
+
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/router/navigation_keys.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'notification_service.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 // ─── Handler background (top-level obligatoire) ───────────────────────────────
 @pragma('vm:entry-point')
@@ -34,26 +40,40 @@ class FCMService {
   /// Appeler une seule fois au démarrage de l'app
   static Future<void> init({required WidgetRef ref}) async {
 
-    // 1. Demander la permission
-    final settings = await _fcm.requestPermission(
-      alert:       true,
-      badge:       true,
-      sound:       true,
-      provisional: false,
-    );
+    // 1. L'autorisation : lue, plus demandée au démarrage (8 novembre 2026).
+    //
+    // La fenêtre du téléphone s'ouvrait au premier lancement, avant que la
+    // personne sache à quoi serviraient ces notifications. Un refus à ce
+    // moment-là est définitif : plus jamais d'alerte de but. Comme Sofascore
+    // (« Être notifié »), la question vient maintenant avec son explication,
+    // au moment où elle a un sens — suivre un match, activer une alerte
+    // (demande_notifications.dart).
+    final settings = await _fcm.getNotificationSettings();
 
     if (settings.authorizationStatus == AuthorizationStatus.denied) {
       debugPrint('[FCM] Permission refusée');
       return;
     }
 
+    // Sur iPhone, une notification reçue app ouverte n'est affichée par iOS
+    // que si on le lui demande. Sans ces options, rien ne s'affichait : la
+    // copie locale d'Android dépend là-bas d'un délégué que l'app ne déclare
+    // pas.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _fcm.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+    }
+
     // 2. Configurer les notifications locales (foreground)
     const initSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      // `@mipmap/ic_launcher` etait le logo Flutter par defaut, jamais
+      // remplace : l'application utilise `launcher_icon`. Et une icone de
+      // notification doit etre monochrome — Android n'en garde que l'alpha.
+      android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS:     DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+        // Pas de question ici non plus : voir l'étape 1.
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
       ),
     );
 
@@ -62,7 +82,10 @@ class FCMService {
       onDidReceiveNotificationResponse: (details) {
         // Tap sur une notification locale (app en foreground)
         debugPrint('[FCM Local tap] payload: ${details.payload}');
-        _navigate(details.payload);
+        final charge = lireCharge(details.payload);
+        marquerLueDepuisPush(ref.read(notificationNotifierProvider.notifier),
+            {'notification_id': charge.id});
+        _navigate(charge.lien);
       },
     );
 
@@ -77,17 +100,22 @@ class FCMService {
     // 4. Notifications en foreground → afficher localement + injecter dans le state
     FirebaseMessaging.onMessage.listen((message) {
       debugPrint('[FCM Foreground] ${message.notification?.title}');
-      _showLocal(message);
+      _relireSiPremium(ref, message);
+      if (copieLocale()) _showLocal(message);
       // ✅ Mise à jour temps réel du badge et de la liste
       notifier.pushIncoming(remoteMessageToNotification(message));
     });
 
     // 5. Tap notification (app en background → foreground)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _relireSiPremium(ref, message);
       final link = message.data['deep_link'] as String?;
+      AnalyseUsage.notificationOuverte((message.data['type'] as String?) ?? '');
       debugPrint('[FCM Tap background→foreground] deep_link: $link');
-      // Rafraîchir la liste depuis l'API (la notif est déjà en base)
-      notifier.fetch();
+      // Ouverte depuis l'écran du téléphone : lue. Puis la liste est relue
+      // depuis l'API (la notification y est déjà) — après le marquage, sans
+      // retarder l'ouverture du lien.
+      marquerLueDepuisPush(notifier, message.data).whenComplete(notifier.fetch);
       _navigate(link);
     });
 
@@ -95,6 +123,7 @@ class FCMService {
     //    → stocker le lien et naviguer après init du router
     final initial = await _fcm.getInitialMessage();
     if (initial != null) {
+      marquerLueDepuisPush(notifier, initial.data).whenComplete(notifier.fetch);
       final link = initial.data['deep_link'] as String?;
       debugPrint('[FCM App killed → opened] deep_link: $link');
       if (link != null && link.isNotEmpty) {
@@ -106,15 +135,19 @@ class FCMService {
       }
     }
 
-    // 7. Enregistrer le token FCM sur le backend
-    final token = await _fcm.getToken();
-    if (token != null) {
-      debugPrint('[FCM] Token: ${token.substring(0, 20)}...');
-      await _registerToken(ref, token);
+    // 7. Enregistrer le token FCM sur le backend — inutile (et rejeté par
+    //    l'API) tant qu'on navigue en invité, sans compte.
+    if (ref.read(effectiveLoggedInProvider)) {
+      final token = await jetonFcm();
+      if (token != null) {
+        debugPrint('[FCM] Token: ${token.substring(0, 20)}...');
+        await _registerToken(ref, token);
+      }
     }
 
-    // 8. Écouter les refreshes de token
+    // 8. Écouter les refreshes de token — uniquement utile pour un compte connecté
     _fcm.onTokenRefresh.listen((newToken) {
+      if (!ref.read(effectiveLoggedInProvider)) return;
       debugPrint('[FCM] Token refresh');
       _registerToken(ref, newToken);
     });
@@ -125,6 +158,14 @@ class FCMService {
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   /// Naviguer vers un deep link via le context du navigator racine.
+  /// « Bienvenue Premium ! », « Ton Premium expire… » : le profil est relu
+  /// sans attendre, pour que l'app ne propose plus Premium à un abonné
+  /// (24 octobre 2026).
+  static void _relireSiPremium(WidgetRef ref, RemoteMessage message) {
+    if (message.data['type'] != 'premium') return;
+    ref.read(authProvider.notifier).resynchroniser(force: true);
+  }
+
   static void _navigate(String? deepLink) {
     if (deepLink == null || deepLink.isEmpty) return;
     debugPrint('[FCM] Navigating to: $deepLink');
@@ -156,11 +197,36 @@ class FCMService {
 
   // ── Notifications locales (foreground) ────────────────────────────────────
 
+  /// Une notification reçue app ouverte est recopiée en notification locale
+  /// sur Android seulement : sur iPhone, iOS l'affiche déjà (options de
+  /// présentation au premier plan), et une copie ferait doublon.
+  @visibleForTesting
+  static bool copieLocale() => defaultTargetPlatform != TargetPlatform.iOS;
+
+  /// Le contenu d'une notification locale : son lien, et l'identifiant de la
+  /// notification enregistrée sur le serveur, pour la marquer lue quand on
+  /// la touche (25 octobre 2026).
+  @visibleForTesting
+  static String chargeDe(Map<String, dynamic> data) =>
+      jsonEncode({'deep_link': data['deep_link'], 'notification_id': data['notification_id']});
+
+  /// Relit [chargeDe]. Une notification affichée par une version précédente
+  /// ne porte que son lien.
+  @visibleForTesting
+  static ({String? lien, String? id}) lireCharge(String? charge) {
+    if (charge == null || charge.isEmpty) return (lien: null, id: null);
+    if (!charge.startsWith('{')) return (lien: charge, id: null);
+    try {
+      final m = jsonDecode(charge) as Map<String, dynamic>;
+      return (lien: m['deep_link'] as String?, id: m['notification_id'] as String?);
+    } catch (_) {
+      return (lien: null, id: null);
+    }
+  }
+
   static Future<void> _showLocal(RemoteMessage message) async {
     final notif = message.notification;
     if (notif == null) return;
-
-    final deepLink = message.data['deep_link'] as String?;
 
     await _local.show(
       message.hashCode,
@@ -182,7 +248,7 @@ class FCMService {
           presentSound: true,
         ),
       ),
-      payload: deepLink,
+      payload: chargeDe(message.data),
     );
   }
 
@@ -192,7 +258,10 @@ class FCMService {
     try {
       await ref.read(dioProvider).post('/notifications/register-token', data: {
         'fcm_token': token,
-        'platform':  'android',
+        'language': AppStrings.current.locale.languageCode,
+        // « android » était écrit en dur : chaque iPhone était enregistré
+        // comme un Android.
+        'platform':  plateforme(),
       });
       debugPrint('[FCM] Token enregistré sur le backend ✅');
     } catch (e) {
@@ -200,6 +269,58 @@ class FCMService {
     }
   }
 
-  /// Récupérer le token actuel (utile pour debug)
-  static Future<String?> getToken() => _fcm.getToken();
+  /// Le jeton de cet appareil (la déconnexion le transmet au serveur).
+  static Future<String?> getToken() => jetonFcm();
+
+  /// La plateforme annoncée au serveur avec le jeton.
+  @visibleForTesting
+  static String plateforme() =>
+      defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+
+  /// Le jeton Firebase de cet appareil, ou `null` s'il n'est pas encore là.
+  ///
+  /// Sur iPhone, Firebase ne délivre son jeton qu'après avoir reçu celui
+  /// d'Apple (APNs), qui arrive quelques instants après le lancement. Le
+  /// demander avant lève `apns-token-not-set` : rien ne l'attrapait, et
+  /// `init()` s'arrêtait avant d'écouter les renouvellements — le téléphone
+  /// ne s'enregistrait jamais. On attend le jeton APNs quelques secondes ;
+  /// s'il ne vient pas, `onTokenRefresh` livrera le jeton Firebase plus tard.
+  static Future<String?> jetonFcm() async {
+    try {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final apns = await attendreValeur(_fcm.getAPNSToken);
+        if (apns == null) {
+          debugPrint('[FCM] Jeton APNs pas encore reçu — enregistrement au prochain renouvellement');
+          return null;
+        }
+      }
+      return await _fcm.getToken();
+    } catch (e) {
+      // Une notification manquée ne doit jamais interrompre le démarrage.
+      debugPrint('[FCM] Jeton indisponible : $e');
+      return null;
+    }
+  }
+
+  /// Relit [lire] jusqu'à obtenir une valeur, au plus [tentatives] fois.
+  @visibleForTesting
+  static Future<String?> attendreValeur(
+    Future<String?> Function() lire, {
+    int tentatives = 10,
+    Duration pause = const Duration(milliseconds: 500),
+  }) async {
+    for (var i = 0; i < tentatives; i++) {
+      final valeur = await lire();
+      if (valeur != null) return valeur;
+      if (i < tentatives - 1) await Future<void>.delayed(pause);
+    }
+    return null;
+  }
+
+  /// À appeler juste après une connexion réussie (un invité vient de créer
+  /// un compte / se connecter) pour rattacher le token FCM déjà obtenu.
+  static Future<void> registerCurrentToken(WidgetRef ref) async {
+    final token = await jetonFcm();
+    if (token != null) await _registerToken(ref, token);
+  }
 }
